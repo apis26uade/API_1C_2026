@@ -12,17 +12,26 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "categories")
+@Table(name = "discounts")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Category {
+public class Discount {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idCategory;
+    private Long idDiscount;
+
+    @Column(unique = true, nullable = false)
+    private String code;
 
     @Column(nullable = false)
-    private String categoryName;
+    private double percentage;
+
+    private String validFrom;
+    private String validTo;
+
+    @Column(nullable = false)
+    private boolean active;
 }

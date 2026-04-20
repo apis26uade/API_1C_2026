@@ -1,0 +1,454 @@
+{
+  "info": {
+    "name": "Goated API",
+    "_postman_id": "goated-api-collection",
+    "description": "Colección completa de la API Goated - Spring Boot + JWT + MySQL",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "token",   "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@goated.com\",\n  \"password\": \"admin123\",\n  \"role\": \"ROLE_ADMIN\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register (USER)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Juan Perez\",\n  \"email\": \"juan@goated.com\",\n  \"password\": \"user123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.token) { pm.collectionVariables.set('token', res.token); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@goated.com\",\n  \"password\": \"admin123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET All Users (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "GET User by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users/1", "host": ["{{baseUrl}}"], "path": ["users","1"] }
+          }
+        },
+        {
+          "name": "DELETE User (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/users/2", "host": ["{{baseUrl}}"], "path": ["users","2"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "GET All Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] }
+          }
+        },
+        {
+          "name": "GET Category by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/categories/1", "host": ["{{baseUrl}}"], "path": ["categories","1"] }
+          }
+        },
+        {
+          "name": "POST Create Category (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] },
+            "body": { "mode": "raw", "raw": "{\n  \"categoryName\": \"Buzos\"\n}" }
+          }
+        },
+        {
+          "name": "PUT Update Category (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/categories/1", "host": ["{{baseUrl}}"], "path": ["categories","1"] },
+            "body": { "mode": "raw", "raw": "{\n  \"categoryName\": \"Buzos Invierno\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE Category (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/categories/1", "host": ["{{baseUrl}}"], "path": ["categories","1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "GET All Products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "GET Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/products/1", "host": ["{{baseUrl}}"], "path": ["products","1"] }
+          }
+        },
+        {
+          "name": "GET Products by Category",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/products/category/1", "host": ["{{baseUrl}}"], "path": ["products","category","1"] }
+          }
+        },
+        {
+          "name": "POST Create Product (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": { \"idCategory\": 1 },\n  \"productName\": \"Buzo Negro\",\n  \"productDescription\": \"Buzo de algodón negro\",\n  \"price\": 8500.0,\n  \"stock\": 20,\n  \"imageProduct\": \"\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PUT Update Product (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/products/1", "host": ["{{baseUrl}}"], "path": ["products","1"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": { \"idCategory\": 1 },\n  \"productName\": \"Buzo Negro Premium\",\n  \"productDescription\": \"Buzo premium\",\n  \"price\": 9500.0,\n  \"stock\": 15,\n  \"imageProduct\": \"\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE Product (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/products/1", "host": ["{{baseUrl}}"], "path": ["products","1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Discounts",
+      "item": [
+        {
+          "name": "GET All Discounts (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/discounts", "host": ["{{baseUrl}}"], "path": ["discounts"] }
+          }
+        },
+        {
+          "name": "GET Discount by Code",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/discounts/code/VERANO10", "host": ["{{baseUrl}}"], "path": ["discounts","code","VERANO10"] }
+          }
+        },
+        {
+          "name": "POST Create Discount (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/discounts", "host": ["{{baseUrl}}"], "path": ["discounts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"VERANO10\",\n  \"percentage\": 10.0,\n  \"validFrom\": \"2026-01-01\",\n  \"validTo\": \"2026-12-31\",\n  \"active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "PUT Update Discount (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/discounts/1", "host": ["{{baseUrl}}"], "path": ["discounts","1"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"VERANO10\",\n  \"percentage\": 15.0,\n  \"validFrom\": \"2026-01-01\",\n  \"validTo\": \"2026-12-31\",\n  \"active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE Discount (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/discounts/1", "host": ["{{baseUrl}}"], "path": ["discounts","1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "POST Create Cart",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/cart?userId=1", "host": ["{{baseUrl}}"], "path": ["cart"], "query": [{ "key": "userId", "value": "1" }] }
+          }
+        },
+        {
+          "name": "GET Cart by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/cart/1", "host": ["{{baseUrl}}"], "path": ["cart","1"] }
+          }
+        },
+        {
+          "name": "GET Cart by User",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/cart/user/1", "host": ["{{baseUrl}}"], "path": ["cart","user","1"] }
+          }
+        },
+        {
+          "name": "DELETE Cart",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/cart/1", "host": ["{{baseUrl}}"], "path": ["cart","1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart Products",
+      "item": [
+        {
+          "name": "POST Add Item to Cart",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/cart-products?cartId=1&productId=1&quantity=2",
+              "host": ["{{baseUrl}}"],
+              "path": ["cart-products"],
+              "query": [
+                { "key": "cartId", "value": "1" },
+                { "key": "productId", "value": "1" },
+                { "key": "quantity", "value": "2" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Items by Cart",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/cart-products/cart/1", "host": ["{{baseUrl}}"], "path": ["cart-products","cart","1"] }
+          }
+        },
+        {
+          "name": "PUT Update Item Quantity",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/cart-products/1?quantity=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["cart-products","1"],
+              "query": [{ "key": "quantity", "value": "5" }]
+            }
+          }
+        },
+        {
+          "name": "DELETE Remove Item",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/cart-products/1", "host": ["{{baseUrl}}"], "path": ["cart-products","1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "POST Create Order (from cart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders?userId=1&cartId=1&discountCode=VERANO10",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "userId", "value": "1" },
+                { "key": "cartId", "value": "1" },
+                { "key": "discountCode", "value": "VERANO10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Create Order (sin descuento)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders?userId=1&cartId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "userId", "value": "1" },
+                { "key": "cartId", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET All Orders (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/orders", "host": ["{{baseUrl}}"], "path": ["orders"] }
+          }
+        },
+        {
+          "name": "GET Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/orders/1", "host": ["{{baseUrl}}"], "path": ["orders","1"] }
+          }
+        },
+        {
+          "name": "GET Orders by User",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/orders/user/1", "host": ["{{baseUrl}}"], "path": ["orders","user","1"] }
+          }
+        },
+        {
+          "name": "GET Order Items",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/orders/1/items", "host": ["{{baseUrl}}"], "path": ["orders","1","items"] }
+          }
+        },
+        {
+          "name": "PATCH Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders/1/status?status=COMPLETED",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders","1","status"],
+              "query": [{ "key": "status", "value": "COMPLETED" }]
+            }
+          }
+        },
+        {
+          "name": "DELETE Order (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/orders/1", "host": ["{{baseUrl}}"], "path": ["orders","1"] }
+          }
+        }
+      ]
+    }
+  ]
+}
