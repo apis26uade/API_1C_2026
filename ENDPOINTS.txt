@@ -1,1 +1,46 @@
-ENDPOINTS/products/categories/cart
+Método	URL	Entidad / DTO	Autenticación / Rol
+AUTENTICACIÓN			
+POST	/auth/register	RegisterRequest → AuthResponse	Público
+POST	/auth/login	LoginRequest → AuthResponse	Público
+CATEGORÍAS			
+GET	/categories	Category	Autenticado
+GET	/categories/{id}	Category	Autenticado
+POST	/categories	Category (body)	ROLE_ADMIN
+PUT	/categories/{id}	Category (body)	ROLE_ADMIN
+DELETE	/categories/{id}	-	ROLE_ADMIN
+PRODUCTOS			
+GET	/products	Product	Autenticado
+GET	/products/{id}	Product	Autenticado
+GET	/products/category/{id}	Product	Autenticado
+POST	/products	Product (body)	ROLE_ADMIN
+PUT	/products/{id}	Product (body)	ROLE_ADMIN
+DELETE	/products/{id}	-	ROLE_ADMIN
+USUARIOS			
+GET	/users	User	ROLE_ADMIN
+GET	/users/{id}	User	ROLE_ADMIN
+DELETE	/users/{id}	-	ROLE_ADMIN
+CARRITO			
+GET	/cart/{id}	Cart	Autenticado
+GET	/cart/user/{userId}	Cart	Autenticado
+POST	/cart?userId={id}	Cart	Autenticado
+DELETE	/cart/{id}	-	Autenticado
+ITEMS DEL CARRITO			
+GET	/cart-products/cart/{cartId}	CartProduct	Autenticado
+POST	/cart-products?cartId=&productId=&quantity=	CartProduct	Autenticado
+PUT	/cart-products/{id}?quantity=	CartProduct	Autenticado
+DELETE	/cart-products/{id}	-	Autenticado
+ÓRDENES			
+GET	/orders	Order	ROLE_ADMIN
+GET	/orders/{id}	Order	Autenticado
+GET	/orders/user/{userId}	Order	Autenticado
+GET	/orders/{id}/items	OrderItem	Autenticado
+POST	/orders?userId=&cartId=[&discountCode=]	Order	Autenticado
+PATCH	/orders/{id}/status?status=	Order	Autenticado
+DELETE	/orders/{id}	-	Autenticado
+DESCUENTOS			
+GET	/discounts	Discount	Autenticado
+GET	/discounts/{id}	Discount	Autenticado
+GET	/discounts/code/{code}	Discount	Autenticado
+POST	/discounts	Discount (body)	ROLE_ADMIN
+PUT	/discounts/{id}	Discount (body)	ROLE_ADMIN
+DELETE	/discounts/{id}	-	ROLE_ADMIN
