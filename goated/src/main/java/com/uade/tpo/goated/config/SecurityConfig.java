@@ -25,23 +25,35 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(401);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Unauthorized\",\"status\":401}");
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(403);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Forbidden\",\"status\":403}");
+                })
+            )
             .authorizeHttpRequests(auth -> auth
                 // Endpoints públicos
                 .requestMatchers("/auth/**").permitAll()
 
                 // Sólo ADMIN: gestión de catálogo y usuarios
-                .requestMatchers(HttpMethod.POST,   "/categories/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/categories/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/categories/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.POST,   "/products/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/products/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/products/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.GET,    "/users/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/users/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.POST,   "/discounts/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/discounts/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/discounts/**").hasAuthority("ROLE_ADMIN")
-                .requestMatchers(HttpMethod.GET,    "/orders").hasAuthority("ROLE_ADMIN")
+                .requestMatchers(HttpMethod.POST,   "/categories/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT,    "/categories/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/categories/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST,   "/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT,    "/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/products/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET,    "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST,   "/discounts/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT,    "/discounts/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/discounts/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET,    "/orders").hasRole("ADMIN")
 
                 // Cualquier usuario autenticado puede consultar catálogo,
                 // gestionar su carrito y sus órdenes
