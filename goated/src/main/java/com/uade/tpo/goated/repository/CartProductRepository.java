@@ -12,5 +12,4 @@ public interface CartProductRepository extends JpaRepository<CartProduct, Long> 
     List<CartProduct> findByCartIdCart(Long cartId);
 
     @Modifying
-    @Transactional
     void deleteByCartIdCart(Long cartId);
