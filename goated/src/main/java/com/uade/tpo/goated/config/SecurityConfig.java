@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import lombok.RequiredArgsConstructor;
 
@@ -20,10 +21,12 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final AuthenticationProvider authenticationProvider;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(AbstractHttpConfigurer::disable)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
@@ -40,6 +43,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Endpoints públicos
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
 
                 // Sólo ADMIN: gestión de catálogo y usuarios
                 .requestMatchers(HttpMethod.POST,   "/categories/**").hasRole("ADMIN")
@@ -55,8 +60,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/discounts/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET,    "/orders").hasRole("ADMIN")
 
-                // Cualquier usuario autenticado puede consultar catálogo,
-                // gestionar su carrito y sus órdenes
+                // Usuario autenticado: carrito, órdenes, descuentos, etc.
                 .anyRequest().authenticated()
             )
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

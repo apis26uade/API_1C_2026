@@ -3,15 +3,15 @@ AUTENTICACIÓN
 POST	/auth/register	RegisterRequest → AuthResponse	Público
 POST	/auth/login	LoginRequest → AuthResponse	Público
 CATEGORÍAS			
-GET	/categories	Category	Autenticado
-GET	/categories/{id}	Category	Autenticado
+GET	/categories	Category	Público
+GET	/categories/{id}	Category	Público
 POST	/categories	Category (body)	ROLE_ADMIN
 PUT	/categories/{id}	Category (body)	ROLE_ADMIN
 DELETE	/categories/{id}	-	ROLE_ADMIN
 PRODUCTOS			
-GET	/products	Product	Autenticado
-GET	/products/{id}	Product	Autenticado
-GET	/products/category/{id}	Product	Autenticado
+GET	/products	Product	Público
+GET	/products/{id}	Product	Público
+GET	/products/category/{id}	Product	Público
 POST	/products	Product (body)	ROLE_ADMIN
 PUT	/products/{id}	Product (body)	ROLE_ADMIN
 DELETE	/products/{id}	-	ROLE_ADMIN
