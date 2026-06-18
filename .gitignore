@@ -1,0 +1,18 @@
+# Archivos locales / backups
+*.zip
+
+# Prototipo Figma (no forma parte del proyecto final)
+figma-export-temp/
+
+# Variables de entorno
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
