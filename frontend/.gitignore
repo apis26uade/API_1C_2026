@@ -15,6 +15,9 @@ dist-ssr
 # Guías de estudio (uso local)
 GUIA-*.md
 
+# Respaldo local de integración backend
+_backup-backend-integration/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
