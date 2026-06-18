@@ -1,23 +1,48 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PageError, PageLoader } from '../components/AsyncState.jsx'
 import { HeartOutlineIcon, LeafIcon, RecycleIcon } from '../components/Icons.jsx'
 import ProductCard from '../components/ProductCard.jsx'
 import {
   categories,
   categoryImages,
-  featuredProducts,
   heroImage,
   philosophyImage,
 } from '../data/products.js'
+import { getProducts } from '../services/api.js'
 
 function Home() {
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
+
+  const loadProducts = () => {
+    setLoading(true)
+    setError('')
+    getProducts()
+      .then(setProducts)
+      .catch((fetchError) => setError(fetchError.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadProducts()
+  }, [])
 
   const handleNewsletter = (event) => {
     event.preventDefault()
     setSubscribed(true)
     setEmail('')
+  }
+
+  if (loading) {
+    return <PageLoader message="Cargando catalogo..." />
+  }
+
+  if (error) {
+    return <PageError message={error} onRetry={loadProducts} />
   }
 
   return (
@@ -27,7 +52,7 @@ function Home() {
         <div className="hero-overlay"></div>
         <div className="hero-content">
           <div className="hero-copy">
-            <p className="eyebrow">Nueva Coleccion 2026</p>
+            <p className="eyebrow">Nueva Colección 2026</p>
             <h1>Moda que respira libertad</h1>
             <p>
               Prendas artesanales con alma, disenadas para la mujer que abraza
@@ -35,7 +60,7 @@ function Home() {
             </p>
             <div className="hero-actions">
               <Link className="button primary" to="/catalogo">
-                Ver Coleccion
+                Ver Colección
               </Link>
               <Link className="button ghost" to="/catalogo?categoria=1">
                 Vestidos
@@ -106,7 +131,7 @@ function Home() {
             </Link>
           </div>
           <div className="product-grid four">
-            {featuredProducts.slice(0, 4).map((product) => (
+            {products.slice(0, 4).map((product) => (
               <ProductCard key={product.idProduct} product={product} />
             ))}
           </div>
@@ -141,7 +166,7 @@ function Home() {
           </div>
         </div>
         <div className="product-grid four">
-          {featuredProducts.slice(4, 8).map((product) => (
+          {products.slice(4, 8).map((product) => (
             <ProductCard key={product.idProduct} product={product} />
           ))}
         </div>

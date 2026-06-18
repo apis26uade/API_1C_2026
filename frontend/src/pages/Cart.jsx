@@ -28,6 +28,8 @@ function Cart() {
     setDiscountCode,
     setDiscountPercent,
     setDiscountMessage,
+    cartError,
+    syncing,
     updateQuantity,
     removeItem,
   } = useCart()
@@ -39,7 +41,8 @@ function Cart() {
     if (!code) return
 
     if (!isAuthenticated) {
-      setDiscountMessage('Inicia sesion para aplicar un codigo')
+      setDiscountPercent(0)
+      setDiscountMessage('Inicia sesion para aplicar un codigo de descuento')
       return
     }
 
@@ -48,9 +51,9 @@ function Cart() {
       const discount = await getDiscountByCode(code)
       setDiscountPercent(discount.percentage)
       setDiscountMessage(`Codigo ${discount.code} aplicado (${discount.percentage}%)`)
-    } catch {
+    } catch (discountError) {
       setDiscountPercent(0)
-      setDiscountMessage('Codigo invalido')
+      setDiscountMessage(discountError.message || 'Codigo invalido')
     } finally {
       setApplyingDiscount(false)
     }
@@ -84,6 +87,9 @@ function Cart() {
       <h1 className="cart-title">
         Tu carrito ({itemCount} {articleLabel})
       </h1>
+
+      {syncing ? <p className="async-hint">Sincronizando carrito con el servidor...</p> : null}
+      {cartError ? <p className="auth-error">{cartError}</p> : null}
 
       <div className="cart-layout">
         <div className="cart-items">

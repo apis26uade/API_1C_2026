@@ -1,69 +1,147 @@
-# Repositorio: https://github.com/apis26uade/API_1C_2026
+# API_1C_2026 — Alma Boho
 
-# Pre-requisitos
+Monorepo del proyecto: **backend Spring Boot** (`goated/`) + **frontend React** (`frontend/`).
 
-1- Java JDK 17 (se recomienda OpenJDK 17 o Temurin 17)
-2- Maven 3.9+ (o usar el wrapper incluido ./mvnw, que no requiere Maven instalado)
-3- MySQL 8.0+
-4- Git
+Repositorio: https://github.com/apis26uade/API_1C_2026
 
-# Paso 1 — Clonar el repositorio
+## Requisitos
+
+1. Java JDK 17+
+2. Maven 3.9+ (o usar `./mvnw` / `.\mvnw.cmd` incluido)
+3. MySQL 8.0+
+4. Node.js 18+ (frontend)
+5. Git
+
+## Estructura
+
+```
+API_1C_2026/
+├── goated/          # API REST (Spring Boot + MySQL + JWT)
+├── frontend/        # Tienda React + Vite
+├── ENDPOINTS.txt    # Referencia de rutas de la API
+└── README.md
+```
+
+## Inicio rápido
+
+### 1. Clonar
+
+```bash
 git clone https://github.com/apis26uade/API_1C_2026.git
-cd API_1C_2026/goated
+cd API_1C_2026
+```
 
-# Paso 2 — Configurar MySQL
-mysql -u root -p
-> CREATE DATABASE IF NOT EXISTS goated_db;
-> exit;
+### 2. MySQL
 
-# Paso 3 — Verificar application.properties
-El archivo está en src/main/resources/application.properties. Ajustar las credenciales si es necesario:
-spring.datasource.url=jdbc:mysql://localhost:3306/goated_db?createDatabaseIfNotExist=true
-spring.datasource.username=root
-spring.datasource.password=root
-application.security.jwt.secret-key=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-application.security.jwt.expiration=86400000
+```sql
+CREATE DATABASE IF NOT EXISTS goated_db;
+```
 
-# Paso 4 — Compilar y ejecutar
-Con Maven Wrapper (recomendado, no requiere Maven instalado):
+### 3. Backend
+
+Copiar y ajustar credenciales:
+
+```bash
+cd goated
+cp src/main/resources/application.properties.example src/main/resources/application.properties
+```
+
+Windows (PowerShell):
+
+```powershell
+Copy-Item src/main/resources/application.properties.example src/main/resources/application.properties
+```
+
+Levantar la API:
+
+```bash
+# Linux / macOS
 ./mvnw spring-boot:run
-Con Maven instalado:
-mvn spring-boot:run
 
-# Paso 5 — Verificar que la app está corriendo
-La API queda disponible en:
-http://localhost:8080
-Health check (Spring Actuator):
-GET http://localhost:8080/actuator/health
+# Windows
+.\mvnw.cmd spring-boot:run
+```
 
-# Paso 6 — Crear primer usuario y obtener token
-Registrar usuario admin:
+API disponible en: **http://localhost:8080**
+
+Health check: `GET http://localhost:8080/actuator/health`
+
+### 4. Frontend
+
+En otra terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+UI disponible en: **http://localhost:5173**
+
+Opcional — URL de la API distinta al default:
+
+```bash
+# frontend/.env
+VITE_API_URL=http://localhost:8080
+```
+
+### 5. Primer usuario admin
+
+```http
 POST http://localhost:8080/auth/register
 Content-Type: application/json
+
 {
   "name": "Admin",
   "email": "admin@test.com",
   "password": "secret",
   "role": "ROLE_ADMIN"
 }
+```
 
-Login (guardar el token de la respuesta):
+Login:
+
+```http
 POST http://localhost:8080/auth/login
+Content-Type: application/json
+
 {
   "email": "admin@test.com",
   "password": "secret"
 }
+```
 
-# Paso 7 — Usar el token JWT en requests protegidos
-Agregar en el header de cada request protegido:
+Usar el token en requests protegidos:
+
+```
 Authorization: Bearer <token_jwt>
-Ejemplo:
-GET http://localhost:8080/products
-Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
+```
 
-# Colección Postman
-El repositorio incluye el archivo goated/postman_collection.json. Importarlo en Postman para probar todos los endpoints directamente, con variables de entorno pre-configuradas para el token JWT.
+## Datos iniciales
 
-# Nota para producción (Externalizar la clave secreta JWT con variables de entorno)
+La base arranca vacía. Para probar la tienda:
+
+1. Registrarse o crear un usuario admin (arriba)
+2. Crear productos desde `/admin/productos` (requiere `ROLE_ADMIN`)
+3. Opcional: cargar descuentos vía `POST /discounts` (admin)
+
+## Postman
+
+Importar `goated/postman_collection.json` para probar todos los endpoints.
+
+## Endpoints
+
+Ver `ENDPOINTS.txt` en la raíz del repo.
+
+## Producción
+
+Externalizar secretos con variables de entorno:
+
+```
 APPLICATION_SECURITY_JWT_SECRET_KEY=<clave-base64-256-bits>
 APPLICATION_SECURITY_JWT_EXPIRATION=86400000
+```
+
+## Documentación del frontend
+
+Ver [frontend/README.md](./frontend/README.md).

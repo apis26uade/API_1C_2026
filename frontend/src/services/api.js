@@ -1,114 +1,210 @@
-import { categories, featuredProducts, normalizeProduct } from '../data/products.js'
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+const getToken = () => localStorage.getItem('boho_token')
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('boho_token') ?? localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
+export class ApiError extends Error {
+  constructor(message, status = 0) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
 }
 
-const request = async (path, options = {}) => {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-      ...options.headers,
-    },
-  })
+async function parseErrorBody(res) {
+  try {
+    const body = await res.json()
+    return body.error ?? body.message ?? `Error ${res.status}`
+  } catch {
+    return `Error ${res.status}`
+  }
+}
 
-  if (!response.ok) {
-    let message = `Error ${response.status}`
-    try {
-      const body = await response.json()
-      message = body.message ?? body.error ?? message
-    } catch {
-      // ignore parse errors
-    }
-    throw new Error(message)
+export async function apiFetch(path, options = {}) {
+  const headers = {
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    ...options.headers,
   }
 
-  if (response.status === 204) return null
-  return response.json()
+  let res
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
+  } catch {
+    throw new ApiError(
+      'No se pudo conectar con el servidor. Verifica que el backend este activo.',
+      0,
+    )
+  }
+
+  if (res.status === 204) return null
+
+  const text = await res.text()
+  let data = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = text
+    }
+  }
+
+  if (!res.ok) {
+    const message =
+      typeof data === 'object' && data !== null
+        ? (data.error ?? data.message ?? `Error ${res.status}`)
+        : `Error ${res.status}`
+    throw new ApiError(message, res.status)
+  }
+
+  return data
 }
 
-export const login = (email, password) =>
-  request('/auth/login', {
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+export const login = async (email, password) => {
+  const data = await apiFetch('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   })
+  return {
+    idUser: data.idUser,
+    email: data.email,
+    role: data.role,
+    token: data.token,
+  }
+}
 
-export const register = (name, email, password) =>
-  request('/auth/register', {
+export const register = async (name, email, password) => {
+  const data = await apiFetch('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ name, email, password, role: 'ROLE_USER' }),
   })
-
-export const getProducts = async () => {
-  try {
-    const products = await request('/products')
-    return products.map((product, index) => normalizeProduct(product, index))
-  } catch {
-    return featuredProducts
+  return {
+    idUser: data.idUser,
+    email: data.email,
+    name,
+    role: data.role,
+    token: data.token,
   }
 }
 
-export const getProductById = async (id) => {
+// ─── Catalog ─────────────────────────────────────────────────────────────────
+
+export const getProducts = () => apiFetch('/products')
+
+export const getProductById = (id) => apiFetch(`/products/${id}`)
+
+export const getCategories = () => apiFetch('/categories')
+
+export const createProduct = (product) =>
+  apiFetch('/products', { method: 'POST', body: JSON.stringify(product) })
+
+export const updateProduct = (id, product) =>
+  apiFetch(`/products/${id}`, { method: 'PUT', body: JSON.stringify(product) })
+
+export const deleteProduct = (id) =>
+  apiFetch(`/products/${id}`, { method: 'DELETE' })
+
+// ─── Cart ────────────────────────────────────────────────────────────────────
+
+export const getOrCreateCart = async (userId) => {
   try {
-    const product = await request(`/products/${id}`)
-    return normalizeProduct(product)
-  } catch {
-    return featuredProducts.find((product) => String(product.idProduct) === String(id))
+    return await apiFetch(`/cart/user/${userId}`)
+  } catch (error) {
+    if (error.status === 404) {
+      return apiFetch(`/cart?userId=${userId}`, { method: 'POST' })
+    }
+    throw error
   }
 }
 
-export const getCategories = async () => {
-  try {
-    const apiCategories = await request('/categories')
-    return apiCategories.map((category, index) => ({
-      idCategory: category.idCategory ?? category.id ?? index + 1,
-      categoryName: category.categoryName ?? category.name ?? `Categoria ${index + 1}`,
-    }))
-  } catch {
-    return categories
-  }
-}
-
-export const getDiscountByCode = (code) => request(`/discounts/code/${encodeURIComponent(code)}`)
-
-export const getOrCreateUserCart = async (userId) => {
-  try {
-    return await request(`/cart/user/${userId}`)
-  } catch {
-    return await request(`/cart?userId=${userId}`, { method: 'POST' })
-  }
-}
-
-export const getCartItems = (cartId) => request(`/cart-products/cart/${cartId}`)
+export const getCartItems = (cartId) => apiFetch(`/cart-products/cart/${cartId}`)
 
 export const addCartItem = (cartId, productId, quantity) =>
-  request(`/cart-products?cartId=${cartId}&productId=${productId}&quantity=${quantity}`, {
-    method: 'POST',
+  apiFetch(
+    `/cart-products?cartId=${cartId}&productId=${productId}&quantity=${quantity}`,
+    { method: 'POST' },
+  )
+
+export const updateCartItem = (id, quantity) =>
+  apiFetch(`/cart-products/${id}?quantity=${quantity}`, { method: 'PUT' })
+
+export const removeCartItem = (id) =>
+  apiFetch(`/cart-products/${id}`, { method: 'DELETE' })
+
+// ─── Orders ──────────────────────────────────────────────────────────────────
+
+export const getOrders = () => apiFetch('/orders')
+
+export const getUserOrders = (userId) => apiFetch(`/orders/user/${userId}`)
+
+export const getOrder = (id) => apiFetch(`/orders/${id}`)
+
+export const getOrderItems = (id) => apiFetch(`/orders/${id}/items`)
+
+export const updateOrderStatus = (id, status) =>
+  apiFetch(`/orders/${id}/status?status=${encodeURIComponent(status)}`, {
+    method: 'PATCH',
   })
 
-export const updateCartItem = (idCartProduct, quantity) =>
-  request(`/cart-products/${idCartProduct}?quantity=${quantity}`, { method: 'PUT' })
-
-export const removeCartItem = (idCartProduct) =>
-  request(`/cart-products/${idCartProduct}`, { method: 'DELETE' })
-
-export const createOrder = (userId, cartId, discountCode) => {
+export const createOrder = async ({ userId, cartId, discountCode }) => {
   const params = new URLSearchParams({
     userId: String(userId),
     cartId: String(cartId),
   })
-  if (discountCode) params.set('discountCode', discountCode)
-  return request(`/orders?${params.toString()}`, { method: 'POST' })
+  if (discountCode?.trim()) {
+    params.set('discountCode', discountCode.trim())
+  }
+  return apiFetch(`/orders?${params}`, { method: 'POST' })
 }
 
-export const mapCartProduct = (cartProduct) => ({
-  idCartProduct: cartProduct.idCartProduct,
-  product: normalizeProduct(cartProduct.product),
-  quantity: cartProduct.quantity,
-  unitPrice: cartProduct.unitPrice ?? cartProduct.product?.price ?? 0,
-})
+export const mapOrderItems = (items) =>
+  items.map((item) => ({
+    idProduct: item.product.idProduct,
+    productName: item.product.productName,
+    imageProduct: item.product.imageProduct,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+  }))
+
+export const enrichOrder = (order, items) => {
+  const mappedItems = mapOrderItems(items)
+  const subtotal = mappedItems.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0,
+  )
+  const discountAmount = order.discount
+    ? subtotal * (order.discount.percentage / 100)
+    : 0
+
+  return {
+    idOrder: order.idOrder,
+    status: order.status,
+    total: order.total,
+    userId: order.user?.idUser,
+    userEmail: order.user?.email,
+    items: mappedItems,
+    subtotal,
+    discountAmount,
+    shippingCost: 0,
+    discountCode: order.discount?.code ?? null,
+  }
+}
+
+export const fetchOrderDetail = async (idOrder) => {
+  const [order, items] = await Promise.all([getOrder(idOrder), getOrderItems(idOrder)])
+  return enrichOrder(order, items)
+}
+
+export const fetchOrdersWithItems = async (orders) =>
+  Promise.all(
+    orders.map(async (order) => {
+      const items = await getOrderItems(order.idOrder)
+      return enrichOrder(order, items)
+    }),
+  )
+
+// ─── Discounts ───────────────────────────────────────────────────────────────
+
+export const getDiscountByCode = (code) =>
+  apiFetch(`/discounts/code/${encodeURIComponent(code.trim())}`)

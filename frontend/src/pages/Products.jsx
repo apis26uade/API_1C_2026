@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDownIcon } from '../components/Icons.jsx'
+import { PageError, PageLoader } from '../components/AsyncState.jsx'
+import { ChevronDownIcon, XIcon } from '../components/Icons.jsx'
 import ProductCard from '../components/ProductCard.jsx'
-import { useAuth } from '../context/AuthContext.jsx'
-import { categories as fallbackCategories, featuredProducts } from '../data/products.js'
 import { getCategories, getProducts } from '../services/api.js'
 
 const sortOptions = [
@@ -21,12 +20,12 @@ const priceRanges = [
 ]
 
 function Products() {
-  const { isAuthenticated } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [products, setProducts] = useState(featuredProducts)
-  const [categories, setCategories] = useState(fallbackCategories)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const search = searchParams.get('q') ?? ''
   const selectedCategory = searchParams.get('categoria')
@@ -35,6 +34,22 @@ function Products() {
   const sort = searchParams.get('orden') ?? 'default'
   const minPrice = searchParams.get('minPrecio') ? Number(searchParams.get('minPrecio')) : 0
   const maxPrice = searchParams.get('maxPrecio') ? Number(searchParams.get('maxPrecio')) : 999
+
+  const loadCatalog = () => {
+    setLoading(true)
+    setError('')
+    Promise.all([getProducts(), getCategories()])
+      .then(([nextProducts, nextCategories]) => {
+        setProducts(nextProducts)
+        setCategories(nextCategories)
+      })
+      .catch((fetchError) => setError(fetchError.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadCatalog()
+  }, [])
 
   const setFilter = (key, value) => {
     setSearchParams((currentParams) => {
@@ -48,50 +63,42 @@ function Products() {
     })
   }
 
-  useEffect(() => {
-    Promise.all([getProducts(), getCategories()])
-      .then(([apiProducts, apiCategories]) => {
-        setProducts(apiProducts)
-        setCategories(apiCategories)
-      })
-      .catch(() => {
-        setProducts(featuredProducts)
-        setCategories(fallbackCategories)
-      })
-      .finally(() => setLoading(false))
-  }, [isAuthenticated])
+  const filteredProducts = useMemo(() => {
+    const normalizedSearch = search.toLowerCase()
+    const result = products.filter((product) => {
+      const matchesSearch =
+        !search ||
+        `${product.productName} ${product.productDescription}`
+          .toLowerCase()
+          .includes(normalizedSearch)
+      const matchesCategory =
+        !selectedCategory || product.category?.idCategory === selectedCategory
+      const matchesPrice = product.price >= minPrice && product.price <= maxPrice
 
-  const filteredProducts = useMemo(
-    () => {
-      const normalizedSearch = search.toLowerCase()
-      const result = products.filter((product) => {
-        const matchesSearch =
-          !search ||
-          `${product.productName} ${product.productDescription}`
-            .toLowerCase()
-            .includes(normalizedSearch)
-        const matchesCategory =
-          !selectedCategory || product.category?.idCategory === selectedCategory
-        const matchesPrice = product.price >= minPrice && product.price <= maxPrice
+      return matchesSearch && matchesCategory && matchesPrice
+    })
 
-        return matchesSearch && matchesCategory && matchesPrice
-      })
+    if (sort === 'price-asc') return result.sort((a, b) => a.price - b.price)
+    if (sort === 'price-desc') return result.sort((a, b) => b.price - a.price)
+    if (sort === 'name') {
+      return result.sort((a, b) => a.productName.localeCompare(b.productName))
+    }
 
-      if (sort === 'price-asc') return result.sort((a, b) => a.price - b.price)
-      if (sort === 'price-desc') return result.sort((a, b) => b.price - a.price)
-      if (sort === 'name') {
-        return result.sort((a, b) => a.productName.localeCompare(b.productName))
-      }
-
-      return result
-    },
-    [maxPrice, minPrice, products, search, selectedCategory, sort],
-  )
+    return result
+  }, [maxPrice, minPrice, products, search, selectedCategory, sort])
 
   const activeCategory = categories.find(
     (category) => category.idCategory === selectedCategory,
   )
   const hasFilters = Boolean(search || selectedCategory || sort !== 'default')
+
+  if (loading) {
+    return <PageLoader message="Cargando productos..." />
+  }
+
+  if (error) {
+    return <PageError message={error} onRetry={loadCatalog} />
+  }
 
   return (
     <section className="catalog-page">
@@ -101,16 +108,23 @@ function Products() {
       </div>
 
       <div className="catalog-toolbar">
-        <div className="search-field">
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => setFilter('q', event.target.value)}
-          placeholder="Buscar prendas..."
-        />
+        <div className={search ? 'search-field has-query' : 'search-field'}>
+          <input
+            type="text"
+            inputMode="search"
+            value={search}
+            onChange={(event) => setFilter('q', event.target.value)}
+            placeholder="Buscar prendas..."
+            aria-label="Buscar prendas"
+          />
           {search ? (
-            <button type="button" onClick={() => setFilter('q', null)}>
-              Limpiar
+            <button
+              type="button"
+              className="search-clear"
+              onClick={() => setFilter('q', null)}
+              aria-label="Limpiar busqueda"
+            >
+              <XIcon size={14} />
             </button>
           ) : null}
         </div>
@@ -201,9 +215,7 @@ function Products() {
 
         <div className="catalog-results">
           <p className="result-count">
-            {loading
-              ? 'Cargando...'
-              : `${filteredProducts.length} producto${filteredProducts.length !== 1 ? 's' : ''}`}
+            {`${filteredProducts.length} producto${filteredProducts.length !== 1 ? 's' : ''}`}
           </p>
 
           {filteredProducts.length ? (

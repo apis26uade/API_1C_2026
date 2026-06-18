@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Guías de estudio (uso local)
+GUIA-*.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

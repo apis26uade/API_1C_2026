@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EyeIcon, EyeOffIcon } from '../components/Icons.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { useCart } from '../context/CartContext.jsx'
 
 const REGISTER_IMAGE =
   'https://images.unsplash.com/photo-1624633100912-2fc4f1002778?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=900&q=85'
@@ -11,7 +10,6 @@ function Register() {
   const navigate = useNavigate()
   const location = useLocation()
   const { register } = useAuth()
-  const { syncLocalToBackend } = useCart()
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -51,8 +49,7 @@ function Register() {
     setError('')
 
     try {
-      const session = await register(form.name, form.email, form.password)
-      await syncLocalToBackend(session.idUser)
+      await register(form.name, form.email, form.password)
       navigate(redirectTo, { replace: true })
     } catch (submitError) {
       setError(submitError.message || 'Error al registrarse')

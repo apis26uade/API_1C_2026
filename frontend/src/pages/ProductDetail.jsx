@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { PageError, PageLoader } from '../components/AsyncState.jsx'
+import { ArrowLeftIcon, CheckIcon, LeafIcon } from '../components/Icons.jsx'
 import ProductCard from '../components/ProductCard.jsx'
 import { useCart } from '../context/CartContext.jsx'
-import { featuredProducts } from '../data/products.js'
-import { getProductById } from '../services/api.js'
+import { getProductById, getProducts } from '../services/api.js'
 
 const formatPrice = (price) =>
   new Intl.NumberFormat('es-AR', {
@@ -16,21 +17,54 @@ function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [product, setProduct] = useState(null)
+  const [relatedProducts, setRelatedProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [notFound, setNotFound] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const [added, setAdded] = useState(false)
   const { addItem } = useCart()
 
-  useEffect(() => {
-    getProductById(id)
-      .then((data) => {
-        setProduct(data ?? null)
-        setQuantity(1)
-        setAdded(false)
+  const loadProduct = () => {
+    setLoading(true)
+    setError('')
+    setNotFound(false)
+
+    Promise.all([getProductById(id), getProducts()])
+      .then(([nextProduct, allProducts]) => {
+        setProduct(nextProduct)
+        setRelatedProducts(
+          allProducts
+            .filter(
+              (item) =>
+                item.idProduct !== nextProduct.idProduct &&
+                item.category?.idCategory === nextProduct.category?.idCategory,
+            )
+            .slice(0, 4),
+        )
       })
-      .catch(() => setProduct(null))
+      .catch((fetchError) => {
+        if (fetchError.status === 404) {
+          setNotFound(true)
+        } else {
+          setError(fetchError.message)
+        }
+      })
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadProduct()
   }, [id])
 
-  if (!product) {
+  if (loading) {
+    return <PageLoader message="Cargando producto..." />
+  }
+
+  if (error) {
+    return <PageError message={error} onRetry={loadProduct} />
+  }
+
+  if (notFound || !product) {
     return (
       <section className="section-container center-section">
         <p className="eyebrow">Detalle</p>
@@ -42,14 +76,6 @@ function ProductDetail() {
     )
   }
 
-  const relatedProducts = featuredProducts
-    .filter(
-      (item) =>
-        item.idProduct !== product.idProduct &&
-        item.category?.idCategory === product.category?.idCategory,
-    )
-    .slice(0, 4)
-
   const stockLabel =
     product.stock === 0
       ? 'Sin stock'
@@ -59,8 +85,6 @@ function ProductDetail() {
 
   const handleAdd = () => {
     addItem(product, quantity)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 2200)
   }
 
   return (
@@ -118,18 +142,27 @@ function ProductDetail() {
           ) : null}
 
           <button
-            className={added ? 'button success full' : 'button primary full'}
+            className="button primary full"
             type="button"
             onClick={handleAdd}
             disabled={product.stock === 0}
           >
-            {added ? 'Agregado!' : product.stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
+            {product.stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
           </button>
 
           <div className="detail-features">
-            <span>Materiales naturales y sostenibles</span>
-            <span>Envio gratis en compras mayores a $150</span>
-            <span>Cambios y devoluciones en 30 dias</span>
+            <div className="detail-feature">
+              <LeafIcon size={18} />
+              <span>Materiales naturales y sostenibles</span>
+            </div>
+            <div className="detail-feature">
+              <CheckIcon size={18} />
+              <span>Envio gratis en compras mayores a $150</span>
+            </div>
+            <div className="detail-feature">
+              <ArrowLeftIcon size={18} />
+              <span>Cambios y devoluciones en 30 dias</span>
+            </div>
           </div>
         </div>
       </section>

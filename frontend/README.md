@@ -1,100 +1,132 @@
-# Frontend - Tienda Online React + Vite
+# Frontend — Alma Boho
 
-Aplicación web de comercio electrónico desarrollada con React y Vite. Permite navegar por productos, ver detalles, gestionar el carrito de compras y completar el proceso de checkout.
+Tienda de moda boho del proyecto **API_1C_2026**, desarrollada con **React 19** y **Vite**.
 
-## Tecnologías utilizadas
+Integrada con el backend Spring Boot en `http://localhost:8080`.
 
-- **React 19** - Librería de interfaz de usuario
-- - **Vite 8** - Bundler y servidor de desarrollo
-  - - **React Router DOM 7** - Navegación entre vistas (SPA)
-   
-    - ## Estructura del proyecto
-   
-    - ```
-      frontend/
-      ├── public/              # Archivos estáticos públicos
-      ├── src/
-      │   ├── assets/          # Imágenes y recursos estáticos
-      │   ├── components/      # Componentes reutilizables
-      │   │   ├── Footer.jsx
-      │   │   ├── Icons.jsx
-      │   │   ├── Navbar.jsx
-      │   │   ├── ProductCard.jsx
-      │   │   └── SectionTitle.jsx
-      │   ├── context/         # Contextos globales de React
-      │   ├── data/            # Datos estáticos / mock data
-      │   ├── pages/           # Vistas principales
-      │   │   ├── Cart.jsx
-      │   │   ├── Checkout.jsx
-      │   │   ├── Contact.jsx
-      │   │   ├── Home.jsx
-      │   │   ├── Login.jsx
-      │   │   ├── NotFound.jsx
-      │   │   ├── ProductDetail.jsx
-      │   │   ├── Products.jsx
-      │   │   └── Register.jsx
-      │   ├── services/        # Llamadas a la API
-      │   ├── App.jsx          # Componente raíz con rutas
-      │   ├── App.css
-      │   ├── index.css
-      │   └── main.jsx
-      ├── index.html
-      ├── package.json
-      └── vite.config.js
-      ```
+## Funcionalidades
 
-      ## Navegación entre vistas
+### Tienda (cliente)
 
-      | Ruta | Vista |
-      |------|-------|
-      | `/` | Inicio (Home) |
-      | `/productos` | Catálogo de productos |
-      | `/catalogo` | Catálogo de productos (alias) |
-      | `/detalle/:id` | Detalle de producto |
-      | `/producto/:id` | Detalle de producto (alias) |
-      | `/carrito` | Carrito de compras |
-      | `/checkout` | Proceso de pago |
-      | `/contacto` | Contacto |
-      | `/login` | Inicio de sesión |
-      | `/registro` | Registro de usuario |
-      | `*` | 404 - Página no encontrada |
+- Home, catálogo con filtros y búsqueda (datos desde la API)
+- Detalle de producto y productos relacionados
+- Carrito sincronizado con el backend al iniciar sesión
+- Checkout con confirmación de orden real (`POST /orders`)
+- Mis pedidos e historial con detalle
+- Registro e inicio de sesión (JWT)
+- Toast al agregar productos al carrito
 
-      ## Instrucciones para ejecutar el proyecto
+### Administración
 
-      ### Requisitos previos
+- Panel en `/admin` (solo `ROLE_ADMIN`)
+- CRUD de productos contra la API
+- Listado de pedidos y cambio de estado
 
-      - Node.js (versión 18 o superior)
-      - - npm (incluido con Node.js)
-       
-        - ### Pasos
-       
-        - 1. **Clonar el repositorio**
-         
-          2. ```bash
-             git clone https://github.com/apis26uade/API_1C_2026.git
-             cd API_1C_2026/frontend
-             ```
+### Métodos de pago (simulados en UI)
 
-             2. **Instalar dependencias**
-            
-             3. ```bash
-                npm install
-                ```
+- Tarjeta de crédito / débito / transferencia
+- No se procesa un cobro real; la orden se crea en el backend desde el carrito
 
-                3. **Iniciar el servidor de desarrollo**
-               
-                4. ```bash
-                   npm run dev
-                   ```
+## Requisitos
 
-                   4. **Abrir en el navegador**
-                  
-                   5. El proyecto estará disponible en: `http://localhost:5173`
-                  
-                   6. ### Otros comandos disponibles
-                  
-                   7. ```bash
-                      npm run build      # Compilar para producción
-                      npm run preview    # Vista previa de la build de producción
-                      npm run lint       # Ejecutar ESLint
-                      ```
+- Node.js 18+
+- Backend `goated` corriendo en `:8080`
+- MySQL con datos (productos, usuarios)
+
+## Instalación y ejecución
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abrí `http://localhost:5173`.
+
+### Variable de entorno (opcional)
+
+```bash
+# .env
+VITE_API_URL=http://localhost:8080
+```
+
+## Scripts
+
+| Comando           | Descripción                    |
+|-------------------|--------------------------------|
+| `npm run dev`     | Servidor de desarrollo         |
+| `npm run build`   | Build de producción en `dist/` |
+| `npm run preview` | Previsualizar el build         |
+| `npm run lint`    | ESLint                         |
+
+## Rutas
+
+| Ruta | Descripción |
+|------|-------------|
+| `/` | Inicio |
+| `/catalogo`, `/productos` | Catálogo |
+| `/producto/:id` | Detalle de producto |
+| `/carrito` | Carrito |
+| `/checkout` | Checkout (requiere login) |
+| `/pedidos` | Mis pedidos (requiere login) |
+| `/pedidos/:id` | Detalle del pedido |
+| `/login` | Iniciar sesión |
+| `/registro` | Crear cuenta |
+| `/contacto` | Contacto |
+| `/admin/productos` | Gestión de productos (admin) |
+| `/admin/pedidos` | Gestión de pedidos (admin) |
+
+## Estructura del proyecto
+
+```
+frontend/
+├── src/
+│   ├── services/
+│   │   ├── api.js          # Cliente HTTP (fetch + JWT)
+│   │   ├── catalog.js      # Re-export de catálogo
+│   │   └── orders.js       # Constantes de pedidos
+│   ├── context/
+│   │   ├── AuthContext.jsx
+│   │   └── CartContext.jsx
+│   ├── components/
+│   │   ├── AsyncState.jsx  # Loading / error
+│   │   └── admin/
+│   ├── pages/
+│   │   └── admin/
+│   └── data/
+│       ├── products.js     # Imágenes estáticas de categorías
+│       └── paymentMethods.js
+├── index.html
+├── vite.config.js
+└── package.json
+```
+
+## Integración con el backend
+
+| Módulo | Endpoints principales |
+|--------|----------------------|
+| Auth | `POST /auth/login`, `POST /auth/register` |
+| Catálogo | `GET /products`, `GET /categories` |
+| Carrito | `GET/POST /cart`, `/cart-products` |
+| Pedidos | `GET /orders`, `POST /orders` |
+| Descuentos | `GET /discounts/code/{code}` |
+
+La UI muestra estados de **carga** y **error de conexión** mientras espera respuestas (no bloquea la interfaz).
+
+## Persistencia local (solo invitado)
+
+| Clave | Uso |
+|-------|-----|
+| `boho_auth` | Sesión JWT del usuario |
+| `boho_cart` | Carrito de invitados (sin login) |
+
+Con sesión activa, el carrito se sincroniza con el backend.
+
+## Tipografías
+
+- **Montserrat** — navegación y UI
+- **Playfair Display** — títulos
+
+## Repositorio
+
+https://github.com/apis26uade/API_1C_2026

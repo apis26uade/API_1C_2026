@@ -1,9 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   addCartItem,
   getCartItems,
-  getOrCreateUserCart,
-  mapCartProduct,
+  getOrCreateCart,
   removeCartItem,
   updateCartItem,
 } from '../services/api.js'
@@ -11,7 +18,6 @@ import { useAuth } from './AuthContext.jsx'
 
 const CartContext = createContext(null)
 const STORAGE_KEY = 'boho_cart'
-const CART_ID_KEY = 'boho_cart_id'
 const SHIPPING_COST = 12
 const FREE_SHIPPING_MIN = 150
 
@@ -24,84 +30,164 @@ const readLocalItems = () => {
   }
 }
 
+const mapCartProduct = (entry) => ({
+  idCartProduct: entry.idCartProduct,
+  product: entry.product,
+  quantity: entry.quantity,
+  unitPrice: entry.unitPrice,
+})
+
+const TOAST_DURATION_MS = 3200
+
 export function CartProvider({ children }) {
-  const { isAuthenticated, user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const [items, setItems] = useState(readLocalItems)
-  const [cartId, setCartId] = useState(() => localStorage.getItem(CART_ID_KEY))
+  const [cartId, setCartId] = useState(null)
+  const [syncing, setSyncing] = useState(false)
+  const [cartError, setCartError] = useState('')
+  const [cartToast, setCartToast] = useState(null)
   const [discountCode, setDiscountCode] = useState('')
   const [discountPercent, setDiscountPercent] = useState(0)
   const [discountMessage, setDiscountMessage] = useState('')
+  const toastTimerRef = useRef(null)
+  const wasAuthenticatedRef = useRef(isAuthenticated)
+
+  const showCartToast = useCallback((productName) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current)
+    }
+    setCartToast(productName)
+    toastTimerRef.current = setTimeout(() => {
+      setCartToast(null)
+      toastTimerRef.current = null
+    }, TOAST_DURATION_MS)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (wasAuthenticatedRef.current && !isAuthenticated) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+      setCartId(null)
+    }
+    wasAuthenticatedRef.current = isAuthenticated
+  }, [isAuthenticated, items])
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.idUser) {
+      setCartId(null)
+      setItems(readLocalItems())
+      return undefined
+    }
+
+    let cancelled = false
+
+    const syncCart = async () => {
+      setSyncing(true)
+      setCartError('')
+      try {
+        const cart = await getOrCreateCart(user.idUser)
+        if (cancelled) return
+
+        setCartId(cart.idCart)
+
+        const localItems = readLocalItems()
+        const backendItems = await getCartItems(cart.idCart)
+        if (cancelled) return
+
+        const backendByProduct = new Map(
+          backendItems.map((entry) => [entry.product.idProduct, entry]),
+        )
+
+        for (const localItem of localItems) {
+          const productId = localItem.product.idProduct
+          const existing = backendByProduct.get(productId)
+          const targetQty = Math.min(
+            (existing?.quantity ?? 0) + localItem.quantity,
+            localItem.product.stock,
+          )
+
+          if (existing) {
+            const updated = await updateCartItem(existing.idCartProduct, targetQty)
+            backendByProduct.set(productId, updated)
+          } else {
+            const created = await addCartItem(cart.idCart, productId, targetQty)
+            backendByProduct.set(productId, created)
+          }
+        }
+
+        if (localItems.length) {
+          localStorage.removeItem(STORAGE_KEY)
+        }
+
+        const syncedItems = await getCartItems(cart.idCart)
+        if (cancelled) return
+        setItems(syncedItems.map(mapCartProduct))
+      } catch (error) {
+        if (!cancelled) {
+          setCartError(error.message || 'No se pudo sincronizar el carrito')
+          setItems(readLocalItems())
+        }
+      } finally {
+        if (!cancelled) setSyncing(false)
+      }
+    }
+
+    syncCart()
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user?.idUser])
 
   const persistLocal = useCallback((nextItems) => {
     setItems(nextItems)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextItems))
   }, [])
 
-  const loadBackendCart = useCallback(async (userId) => {
-    const cart = await getOrCreateUserCart(userId)
-    setCartId(String(cart.idCart))
-    localStorage.setItem(CART_ID_KEY, String(cart.idCart))
-
-    const backendItems = await getCartItems(cart.idCart)
-    const mapped = backendItems.map(mapCartProduct)
-    persistLocal(mapped)
-    return mapped
-  }, [persistLocal])
-
-  const syncLocalToBackend = useCallback(
-    async (userId) => {
-      const cart = await getOrCreateUserCart(userId)
-      const currentCartId = cart.idCart
-      setCartId(String(currentCartId))
-      localStorage.setItem(CART_ID_KEY, String(currentCartId))
-
-      const localItems = readLocalItems()
-      for (const entry of localItems) {
-        await addCartItem(currentCartId, entry.product.idProduct, entry.quantity)
-      }
-
-      return loadBackendCart(userId)
-    },
-    [loadBackendCart],
-  )
-
-  useEffect(() => {
-    if (isAuthenticated && user?.idUser) {
-      syncLocalToBackend(user.idUser).catch(() => loadBackendCart(user.idUser))
-    }
-  }, [isAuthenticated, user?.idUser, syncLocalToBackend, loadBackendCart])
-
   const addItem = async (product, quantity = 1) => {
     if (!product || product.stock === 0) return
 
-    const existing = items.find((entry) => entry.product.idProduct === product.idProduct)
-    const nextQuantity = Math.min(
-      (existing?.quantity ?? 0) + quantity,
-      product.stock,
-    )
-
-    if (isAuthenticated && user?.idUser) {
+    if (isAuthenticated && cartId) {
+      setCartError('')
       try {
-        let activeCartId = cartId
-        if (!activeCartId) {
-          const cart = await getOrCreateUserCart(user.idUser)
-          activeCartId = String(cart.idCart)
-          setCartId(activeCartId)
-          localStorage.setItem(CART_ID_KEY, activeCartId)
-        }
+        const existing = items.find((entry) => entry.product.idProduct === product.idProduct)
+        const nextQuantity = Math.min(
+          (existing?.quantity ?? 0) + quantity,
+          product.stock,
+        )
 
-        if (existing?.idCartProduct) {
-          await updateCartItem(existing.idCartProduct, nextQuantity)
+        if (existing) {
+          const updated = await updateCartItem(existing.idCartProduct, nextQuantity)
+          setItems((current) =>
+            current.map((entry) =>
+              entry.idCartProduct === existing.idCartProduct
+                ? mapCartProduct(updated)
+                : entry,
+            ),
+          )
         } else {
-          await addCartItem(activeCartId, product.idProduct, quantity)
+          const created = await addCartItem(
+            cartId,
+            product.idProduct,
+            Math.min(quantity, product.stock),
+          )
+          setItems((current) => [...current, mapCartProduct(created)])
         }
 
-        await loadBackendCart(user.idUser)
-        return
-      } catch {
-        // fallback to local cart
+        showCartToast(product.productName)
+      } catch (error) {
+        setCartError(error.message || 'No se pudo agregar al carrito')
       }
+      return
     }
+
+    const existing = items.find((entry) => entry.product.idProduct === product.idProduct)
+    const nextQuantity = Math.min((existing?.quantity ?? 0) + quantity, product.stock)
 
     if (existing) {
       persistLocal(
@@ -111,18 +197,20 @@ export function CartProvider({ children }) {
             : entry,
         ),
       )
+      showCartToast(product.productName)
       return
     }
 
     persistLocal([
       ...items,
       {
-        idCartProduct: null,
+        idCartProduct: `${product.idProduct}-${Date.now()}`,
         product,
         quantity: Math.min(quantity, product.stock),
         unitPrice: product.price,
       },
     ])
+    showCartToast(product.productName)
   }
 
   const updateQuantity = async (idProduct, quantity) => {
@@ -131,9 +219,18 @@ export function CartProvider({ children }) {
 
     const safeQuantity = Math.max(1, Math.min(quantity, entry.product.stock))
 
-    if (isAuthenticated && entry.idCartProduct) {
-      await updateCartItem(entry.idCartProduct, safeQuantity)
-      await loadBackendCart(user.idUser)
+    if (isAuthenticated && cartId && entry.idCartProduct) {
+      setCartError('')
+      try {
+        const updated = await updateCartItem(entry.idCartProduct, safeQuantity)
+        setItems((current) =>
+          current.map((item) =>
+            item.idCartProduct === entry.idCartProduct ? mapCartProduct(updated) : item,
+          ),
+        )
+      } catch (error) {
+        setCartError(error.message || 'No se pudo actualizar la cantidad')
+      }
       return
     }
 
@@ -146,10 +243,18 @@ export function CartProvider({ children }) {
 
   const removeItem = async (idProduct) => {
     const entry = items.find((item) => item.product.idProduct === idProduct)
+    if (!entry) return
 
-    if (isAuthenticated && entry?.idCartProduct) {
-      await removeCartItem(entry.idCartProduct)
-      await loadBackendCart(user.idUser)
+    if (isAuthenticated && cartId && entry.idCartProduct) {
+      setCartError('')
+      try {
+        await removeCartItem(entry.idCartProduct)
+        setItems((current) =>
+          current.filter((item) => item.product.idProduct !== idProduct),
+        )
+      } catch (error) {
+        setCartError(error.message || 'No se pudo eliminar el producto')
+      }
       return
     }
 
@@ -157,7 +262,10 @@ export function CartProvider({ children }) {
   }
 
   const clearCart = () => {
-    persistLocal([])
+    setItems([])
+    if (!isAuthenticated) {
+      localStorage.removeItem(STORAGE_KEY)
+    }
     setDiscountCode('')
     setDiscountPercent(0)
     setDiscountMessage('')
@@ -193,6 +301,9 @@ export function CartProvider({ children }) {
       value={{
         items,
         cartId,
+        syncing,
+        cartError,
+        cartToast,
         itemCount,
         subtotal,
         shipping,
@@ -208,8 +319,6 @@ export function CartProvider({ children }) {
         updateQuantity,
         removeItem,
         clearCart,
-        syncLocalToBackend,
-        loadBackendCart,
       }}
     >
       {children}

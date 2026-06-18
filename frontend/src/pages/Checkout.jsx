@@ -1,8 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import CheckoutSummary from '../components/CheckoutSummary.jsx'
+import {
+  CheckIcon,
+  CreditCardIcon,
+  MapPinIcon,
+  PackageIcon,
+} from '../components/Icons.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
+import { PAYMENT_METHODS } from '../data/paymentMethods.js'
 import { createOrder } from '../services/api.js'
+import { formatOrderId } from '../services/orders.js'
+import {
+  formatCardNumberInput,
+  formatCvvInput,
+  formatExpiryInput,
+  formatPhoneInput,
+  formatPostalCodeInput,
+  validatePaymentForm,
+  validateShippingForm,
+} from '../utils/checkoutValidation.js'
 
 const formatPrice = (price) =>
   new Intl.NumberFormat('es-AR', {
@@ -11,7 +29,7 @@ const formatPrice = (price) =>
     maximumFractionDigits: 2,
   }).format(price)
 
-const initialForm = {
+const initialShipping = {
   name: '',
   email: '',
   phone: '',
@@ -27,55 +45,144 @@ function Checkout() {
   const {
     items,
     cartId,
+    syncing,
     subtotal,
-    shipping,
+    shipping: shippingCost,
     discountCode,
     discountPercent,
     discountAmount,
     total,
     clearCart,
   } = useCart()
-  const [form, setForm] = useState(initialForm)
-  const [completed, setCompleted] = useState(false)
+
+  const [step, setStep] = useState('shipping')
+  const [shippingForm, setShippingForm] = useState(initialShipping)
+  const [paymentMethod, setPaymentMethod] = useState('credit')
+  const [cardForm, setCardForm] = useState({
+    cardNumber: '',
+    expiry: '',
+    cvv: '',
+    cardName: '',
+  })
+  const [orderId, setOrderId] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [shippingErrors, setShippingErrors] = useState({})
+  const [paymentErrors, setPaymentErrors] = useState({})
+
+  const selectedPayment = PAYMENT_METHODS.find((method) => method.id === paymentMethod)
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/checkout' }, replace: true })
       return
     }
-    if (!items.length && !completed) {
+    if (!items.length && step !== 'success') {
       navigate('/carrito', { replace: true })
     }
     if (user?.email) {
-      setForm((current) => ({ ...current, email: user.email }))
+      setShippingForm((current) => ({
+        ...current,
+        email: user.email,
+        name: current.name || user.name || '',
+      }))
+      setCardForm((current) => ({
+        ...current,
+        cardName: current.cardName || user.name || '',
+      }))
     }
-  }, [completed, isAuthenticated, items.length, navigate, user?.email])
+  }, [isAuthenticated, items.length, navigate, step, user?.email, user?.name])
 
-  const handleChange = (event) => {
-    const { name, value } = event.target
-    setForm((current) => ({ ...current, [name]: value }))
+  const clearShippingError = (field) => {
+    setShippingErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
   }
 
-  const handleSubmit = async (event) => {
+  const clearPaymentError = (field) => {
+    setPaymentErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const updateShipping = (event) => {
+    const { name, value } = event.target
+    let nextValue = value
+
+    if (name === 'phone') nextValue = formatPhoneInput(value)
+    if (name === 'postalCode') nextValue = formatPostalCodeInput(value)
+
+    setShippingForm((current) => ({ ...current, [name]: nextValue }))
+    clearShippingError(name)
+  }
+
+  const updateCard = (event) => {
+    const { name, value } = event.target
+    let nextValue = value
+
+    if (name === 'cardNumber') nextValue = formatCardNumberInput(value)
+    if (name === 'expiry') nextValue = formatExpiryInput(value)
+    if (name === 'cvv') nextValue = formatCvvInput(value)
+
+    setCardForm((current) => ({ ...current, [name]: nextValue }))
+    clearPaymentError(name)
+  }
+
+  const handleShippingSubmit = (event) => {
     event.preventDefault()
-    if (!cartId || !user?.idUser) {
-      setError('No se encontro el carrito del usuario')
+    const result = validateShippingForm(shippingForm)
+    setShippingErrors(result.errors)
+    if (result.valid) setStep('payment')
+  }
+
+  const handleConfirmOrder = async () => {
+    if (!user?.idUser) {
+      setError('Debes iniciar sesion para confirmar la compra')
       return
+    }
+
+    if (!cartId) {
+      setError(syncing ? 'Sincronizando carrito, intenta de nuevo en un momento' : 'No se encontro el carrito')
+      return
+    }
+
+    const shippingResult = validateShippingForm(shippingForm)
+    if (!shippingResult.valid) {
+      setShippingErrors(shippingResult.errors)
+      setPaymentErrors({})
+      setError('')
+      setStep('shipping')
+      return
+    }
+
+    if (selectedPayment?.requiresCard) {
+      const paymentResult = validatePaymentForm(cardForm)
+      if (!paymentResult.valid) {
+        setPaymentErrors(paymentResult.errors)
+        setError('')
+        return
+      }
     }
 
     setLoading(true)
     setError('')
+    setPaymentErrors({})
 
     try {
-      await createOrder(
-        user.idUser,
-        Number(cartId),
-        discountPercent > 0 ? discountCode.trim() : undefined,
-      )
+      const order = await createOrder({
+        userId: user.idUser,
+        cartId,
+        discountCode: discountPercent > 0 ? discountCode.trim() : undefined,
+      })
+      setOrderId(order.idOrder)
       clearCart()
-      setCompleted(true)
+      setStep('success')
     } catch (submitError) {
       setError(submitError.message || 'No se pudo confirmar la compra')
     } finally {
@@ -83,18 +190,33 @@ function Checkout() {
     }
   }
 
-  if (completed) {
+  if (step === 'success') {
     return (
-      <section className="checkout-page section-container center-section">
+      <section className="checkout-page section-container center-section checkout-success">
+        <div className="checkout-success-icon" aria-hidden="true">
+          <CheckIcon size={36} />
+        </div>
         <p className="eyebrow">Pedido confirmado</p>
         <h1>Gracias por tu compra</h1>
-        <p>
-          Tu orden fue creada en el backend. Te enviaremos la confirmacion a{' '}
-          <strong>{form.email}</strong>.
+        <p className="checkout-success-id">
+          Tu pedido <strong>#{formatOrderId(orderId)}</strong> fue registrado correctamente.
         </p>
-        <Link className="button primary" to="/catalogo">
-          Seguir comprando
-        </Link>
+        <p>
+          Enviamos la confirmacion a <strong>{shippingForm.email}</strong>. Podes seguir el
+          estado desde Mis pedidos.
+        </p>
+        <div className="checkout-success-actions">
+          <Link className="button primary" to={`/pedidos/${orderId}`}>
+            <PackageIcon size={16} />
+            Ver detalle del pedido
+          </Link>
+          <Link className="button ghost" to="/pedidos">
+            Mis pedidos
+          </Link>
+          <Link className="checkout-back centered" to="/catalogo">
+            Seguir comprando
+          </Link>
+        </div>
       </section>
     )
   }
@@ -102,94 +224,264 @@ function Checkout() {
   return (
     <section className="checkout-page section-container">
       <div className="checkout-header">
-        <p className="eyebrow">Ultimo paso</p>
+        <p className="eyebrow">Checkout</p>
         <h1>Finalizar compra</h1>
       </div>
 
-      <div className="checkout-layout">
-        <form className="checkout-form" onSubmit={handleSubmit}>
-          <h2>Datos de envio</h2>
-          <div className="checkout-grid">
-            <label>
-              Nombre completo
-              <input name="name" value={form.name} onChange={handleChange} required />
-            </label>
-            <label>
-              Email
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                required
-              />
-            </label>
-            <label>
-              Telefono
-              <input name="phone" value={form.phone} onChange={handleChange} required />
-            </label>
-            <label className="full-width">
-              Direccion
-              <input name="address" value={form.address} onChange={handleChange} required />
-            </label>
-            <label>
-              Ciudad
-              <input name="city" value={form.city} onChange={handleChange} required />
-            </label>
-            <label>
-              Codigo postal
-              <input name="postalCode" value={form.postalCode} onChange={handleChange} required />
-            </label>
-            <label className="full-width">
-              Notas del pedido (opcional)
-              <textarea name="notes" value={form.notes} onChange={handleChange} rows="4" />
-            </label>
-          </div>
-
-          {error ? <p className="auth-error">{error}</p> : null}
-
-          <button className="button checkout-btn full" type="submit" disabled={loading}>
-            {loading ? 'Confirmando...' : 'Confirmar compra'}
-          </button>
-          <Link className="checkout-back" to="/carrito">
-            Volver al carrito
-          </Link>
-        </form>
-
-        <aside className="checkout-summary">
-          <h2>Resumen del pedido</h2>
-          <ul className="checkout-items">
-            {items.map(({ product, quantity, unitPrice }) => (
-              <li key={product.idProduct}>
-                <span>
-                  {product.productName} x{quantity}
-                </span>
-                <strong>{formatPrice(unitPrice * quantity)}</strong>
-              </li>
-            ))}
-          </ul>
-          <div className="cart-summary-row">
-            <span>Subtotal</span>
-            <strong>{formatPrice(subtotal)}</strong>
-          </div>
-          <div className="cart-summary-row shipping-row">
-            <span>Envio</span>
-            <strong>{formatPrice(shipping)}</strong>
-          </div>
-          {discountPercent > 0 ? (
-            <div className="cart-summary-row discount-row">
-              <span>Descuento ({discountPercent}%)</span>
-              <strong>-{formatPrice(discountAmount)}</strong>
+      <div className="checkout-steps">
+        {[
+          { id: 'shipping', label: 'Envio', Icon: MapPinIcon },
+          { id: 'payment', label: 'Pago', Icon: CreditCardIcon },
+        ].map((item, index) => {
+          const active = step === item.id
+          const done = item.id === 'shipping' && step === 'payment'
+          return (
+            <div className="checkout-step-wrap" key={item.id}>
+              {index > 0 ? <span className="checkout-step-line" /> : null}
+              <span
+                className={
+                  active ? 'checkout-step active' : done ? 'checkout-step done' : 'checkout-step'
+                }
+              >
+                {done ? <CheckIcon size={14} /> : <item.Icon size={14} />}
+                {item.label}
+              </span>
             </div>
-          ) : null}
-          <div className="cart-summary-row checkout-total">
-            <span>Total estimado</span>
-            <strong>{formatPrice(total)}</strong>
-          </div>
-          <p className="cart-note">
-            La orden en el backend aplica el descuento sobre el subtotal del carrito.
-          </p>
-        </aside>
+          )
+        })}
+      </div>
+
+      <div className="checkout-layout">
+        <div className="checkout-form-panel">
+          {step === 'shipping' ? (
+            <form className="checkout-form" onSubmit={handleShippingSubmit} noValidate>
+              <h2>Datos de envio</h2>
+              <div className="checkout-grid">
+                <label className={shippingErrors.name ? 'has-error' : ''}>
+                  Nombre completo
+                  <input
+                    name="name"
+                    value={shippingForm.name}
+                    onChange={updateShipping}
+                    className={shippingErrors.name ? 'input-invalid' : ''}
+                    autoComplete="name"
+                  />
+                  {shippingErrors.name ? (
+                    <span className="checkout-field-hint">{shippingErrors.name}</span>
+                  ) : null}
+                </label>
+                <label className={shippingErrors.email ? 'has-error' : ''}>
+                  Email
+                  <input
+                    name="email"
+                    type="email"
+                    value={shippingForm.email}
+                    onChange={updateShipping}
+                    className={shippingErrors.email ? 'input-invalid' : ''}
+                    autoComplete="email"
+                  />
+                  {shippingErrors.email ? (
+                    <span className="checkout-field-hint">{shippingErrors.email}</span>
+                  ) : null}
+                </label>
+                <label className={shippingErrors.phone ? 'has-error' : ''}>
+                  Telefono
+                  <input
+                    name="phone"
+                    value={shippingForm.phone}
+                    onChange={updateShipping}
+                    className={shippingErrors.phone ? 'input-invalid' : ''}
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="11 2345 6789"
+                  />
+                  {shippingErrors.phone ? (
+                    <span className="checkout-field-hint">{shippingErrors.phone}</span>
+                  ) : null}
+                </label>
+                <label className={`full-width${shippingErrors.address ? ' has-error' : ''}`}>
+                  Direccion
+                  <input
+                    name="address"
+                    value={shippingForm.address}
+                    onChange={updateShipping}
+                    className={shippingErrors.address ? 'input-invalid' : ''}
+                    autoComplete="street-address"
+                  />
+                  {shippingErrors.address ? (
+                    <span className="checkout-field-hint">{shippingErrors.address}</span>
+                  ) : null}
+                </label>
+                <label className={shippingErrors.city ? 'has-error' : ''}>
+                  Ciudad
+                  <input
+                    name="city"
+                    value={shippingForm.city}
+                    onChange={updateShipping}
+                    className={shippingErrors.city ? 'input-invalid' : ''}
+                    autoComplete="address-level2"
+                  />
+                  {shippingErrors.city ? (
+                    <span className="checkout-field-hint">{shippingErrors.city}</span>
+                  ) : null}
+                </label>
+                <label className={shippingErrors.postalCode ? 'has-error' : ''}>
+                  Codigo postal
+                  <input
+                    name="postalCode"
+                    value={shippingForm.postalCode}
+                    onChange={updateShipping}
+                    className={shippingErrors.postalCode ? 'input-invalid' : ''}
+                    autoComplete="postal-code"
+                    placeholder="1425"
+                  />
+                  {shippingErrors.postalCode ? (
+                    <span className="checkout-field-hint">{shippingErrors.postalCode}</span>
+                  ) : null}
+                </label>
+                <label className="full-width">
+                  Notas (opcional)
+                  <textarea
+                    name="notes"
+                    value={shippingForm.notes}
+                    onChange={updateShipping}
+                    rows="4"
+                  />
+                </label>
+              </div>
+              <button className="button checkout-btn full" type="submit">
+                Continuar al pago
+              </button>
+              <Link className="checkout-back" to="/carrito">
+                Volver al carrito
+              </Link>
+            </form>
+          ) : (
+            <div className="checkout-form">
+              <h2>Metodo de pago</h2>
+              <div className="payment-methods">
+                {PAYMENT_METHODS.map((method) => (
+                  <button
+                    key={method.id}
+                    type="button"
+                    className={
+                      paymentMethod === method.id ? 'payment-method active' : 'payment-method'
+                    }
+                    onClick={() => setPaymentMethod(method.id)}
+                  >
+                    <CreditCardIcon size={18} />
+                    <strong>{method.label}</strong>
+                    <span>{method.description}</span>
+                  </button>
+                ))}
+              </div>
+
+              {selectedPayment?.requiresCard ? (
+                <div className="checkout-grid payment-card-grid">
+                  <label className={`full-width${paymentErrors.cardNumber ? ' has-error' : ''}`}>
+                    Numero de tarjeta
+                    <input
+                      name="cardNumber"
+                      value={cardForm.cardNumber}
+                      onChange={updateCard}
+                      className={paymentErrors.cardNumber ? 'input-invalid' : ''}
+                      inputMode="numeric"
+                      autoComplete="cc-number"
+                      placeholder="4242 4242 4242 4242"
+                    />
+                    {paymentErrors.cardNumber ? (
+                      <span className="checkout-field-hint">{paymentErrors.cardNumber}</span>
+                    ) : null}
+                  </label>
+                  <label className={paymentErrors.expiry ? 'has-error' : ''}>
+                    Vencimiento
+                    <input
+                      name="expiry"
+                      value={cardForm.expiry}
+                      onChange={updateCard}
+                      className={paymentErrors.expiry ? 'input-invalid' : ''}
+                      inputMode="numeric"
+                      autoComplete="cc-exp"
+                      placeholder="MM/AA"
+                      maxLength={5}
+                    />
+                    {paymentErrors.expiry ? (
+                      <span className="checkout-field-hint">{paymentErrors.expiry}</span>
+                    ) : null}
+                  </label>
+                  <label className={paymentErrors.cvv ? 'has-error' : ''}>
+                    CVV
+                    <input
+                      name="cvv"
+                      value={cardForm.cvv}
+                      onChange={updateCard}
+                      className={paymentErrors.cvv ? 'input-invalid' : ''}
+                      inputMode="numeric"
+                      autoComplete="cc-csc"
+                      placeholder="123"
+                      maxLength={4}
+                    />
+                    {paymentErrors.cvv ? (
+                      <span className="checkout-field-hint">{paymentErrors.cvv}</span>
+                    ) : null}
+                  </label>
+                  <label className={`full-width${paymentErrors.cardName ? ' has-error' : ''}`}>
+                    Nombre en la tarjeta
+                    <input
+                      name="cardName"
+                      value={cardForm.cardName}
+                      onChange={updateCard}
+                      className={paymentErrors.cardName ? 'input-invalid' : ''}
+                      autoComplete="cc-name"
+                    />
+                    {paymentErrors.cardName ? (
+                      <span className="checkout-field-hint">{paymentErrors.cardName}</span>
+                    ) : null}
+                  </label>
+                </div>
+              ) : (
+                <p className="payment-transfer-note">
+                  Recibiras por email los datos de la cuenta para transferir{' '}
+                  <strong>{formatPrice(total)}</strong>.
+                </p>
+              )}
+
+              <p className="payment-secure-note">
+                <CheckIcon size={16} />
+                Pago simulado para demostracion. No se procesa un cobro real.
+              </p>
+
+              {error ? <p className="auth-error">{error}</p> : null}
+
+              <div className="checkout-payment-actions">
+                <button
+                  className="button ghost"
+                  type="button"
+                  onClick={() => setStep('shipping')}
+                >
+                  Volver
+                </button>
+                <button
+                  className="button checkout-btn"
+                  type="button"
+                  onClick={handleConfirmOrder}
+                  disabled={loading}
+                >
+                  {loading ? 'Procesando...' : 'Confirmar compra'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <CheckoutSummary
+          items={items}
+          subtotal={subtotal}
+          shipping={shippingCost}
+          discountPercent={discountPercent}
+          discountAmount={discountAmount}
+          total={total}
+        />
       </div>
     </section>
   )

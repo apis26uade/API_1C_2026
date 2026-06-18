@@ -7,7 +7,7 @@ import { ChevronDownIcon, ShoppingBagIcon } from './Icons.jsx'
 
 function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { isAuthenticated, user, logout } = useAuth()
+  const { isAuthenticated, isAdmin, user, logout } = useAuth()
   const { itemCount } = useCart()
 
   const closeMobileMenu = () => setMobileOpen(false)
@@ -48,10 +48,18 @@ function Navbar() {
         <div className="nav-actions">
           {isAuthenticated ? (
             <>
+              <Link className="nav-link-btn" to="/pedidos">
+                Mis pedidos
+              </Link>
+              {isAdmin ? (
+                <Link className="nav-link-btn" to="/admin">
+                  Admin
+                </Link>
+              ) : null}
               <span className="nav-user" title={user?.email}>
-                Hola
+                {user?.name ?? user?.email?.split('@')[0]}
               </span>
-              <button className="auth-link nav-logout" type="button" onClick={logout}>
+              <button className="nav-link-btn nav-logout" type="button" onClick={logout}>
                 Salir
               </button>
             </>

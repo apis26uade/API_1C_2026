@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { login as loginUser, register as registerUser } from '../services/api.js'
+import { login as apiLogin, register as apiRegister } from '../services/api.js'
 
 const AuthContext = createContext(null)
 const AUTH_KEY = 'boho_auth'
@@ -23,20 +23,32 @@ export function AuthProvider({ children }) {
     } else {
       localStorage.removeItem(AUTH_KEY)
       localStorage.removeItem('boho_token')
+      localStorage.removeItem('boho_cart_id')
     }
   }, [user])
 
   const login = async (email, password) => {
-    const session = await loginUser(email, password)
+    const response = await apiLogin(email, password)
+    const session = {
+      idUser: response.idUser,
+      email: response.email,
+      role: response.role,
+      token: response.token,
+    }
     setUser(session)
     return session
   }
 
   const register = async (name, email, password) => {
-    const session = await registerUser(name, email, password)
-    const nextUser = { ...session, name: session.name ?? name.trim() }
-    setUser(nextUser)
-    return nextUser
+    const response = await apiRegister(name, email, password)
+    const session = {
+      idUser: response.idUser,
+      email: response.email,
+      role: response.role,
+      token: response.token,
+    }
+    setUser(session)
+    return session
   }
 
   const logout = () => setUser(null)
@@ -45,7 +57,6 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       isAuthenticated: Boolean(user?.token),
-      isAdmin: user?.role === 'ROLE_ADMIN',
       login,
       register,
       logout,
