@@ -15,6 +15,7 @@ import {
   updateCartItem,
 } from '../services/api.js'
 import { useAuth } from './AuthContext.jsx'
+import { useToast } from './ToastContext.jsx'
 
 const CartContext = createContext(null)
 const STORAGE_KEY = 'boho_cart'
@@ -37,37 +38,23 @@ const mapCartProduct = (entry) => ({
   unitPrice: entry.unitPrice,
 })
 
-const TOAST_DURATION_MS = 3200
-
 export function CartProvider({ children }) {
   const { user, isAuthenticated } = useAuth()
+  const { toastSuccess, toastError } = useToast()
   const [items, setItems] = useState(readLocalItems)
   const [cartId, setCartId] = useState(null)
   const [syncing, setSyncing] = useState(false)
-  const [cartError, setCartError] = useState('')
-  const [cartToast, setCartToast] = useState(null)
-  const [discountCode, setDiscountCode] = useState('')
-  const [discountPercent, setDiscountPercent] = useState(0)
-  const [discountMessage, setDiscountMessage] = useState('')
-  const toastTimerRef = useRef(null)
+  const [appliedDiscount, setAppliedDiscount] = useState(null)
   const wasAuthenticatedRef = useRef(isAuthenticated)
 
-  const showCartToast = useCallback((productName) => {
-    if (toastTimerRef.current) {
-      clearTimeout(toastTimerRef.current)
-    }
-    setCartToast(productName)
-    toastTimerRef.current = setTimeout(() => {
-      setCartToast(null)
-      toastTimerRef.current = null
-    }, TOAST_DURATION_MS)
-  }, [])
+  const discountCode = appliedDiscount?.code ?? ''
+  const discountPercent = appliedDiscount?.percentage ?? 0
 
-  useEffect(
-    () => () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+  const notifyAdded = useCallback(
+    (productName) => {
+      toastSuccess(`"${productName}" agregado al carrito`)
     },
-    [],
+    [toastSuccess],
   )
 
   useEffect(() => {
@@ -89,7 +76,6 @@ export function CartProvider({ children }) {
 
     const syncCart = async () => {
       setSyncing(true)
-      setCartError('')
       try {
         const cart = await getOrCreateCart(user.idUser)
         if (cancelled) return
@@ -130,7 +116,7 @@ export function CartProvider({ children }) {
         setItems(syncedItems.map(mapCartProduct))
       } catch (error) {
         if (!cancelled) {
-          setCartError(error.message || 'No se pudo sincronizar el carrito')
+          toastError(error.message || 'No se pudo sincronizar el carrito')
           setItems(readLocalItems())
         }
       } finally {
@@ -142,18 +128,28 @@ export function CartProvider({ children }) {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, user?.idUser])
+  }, [isAuthenticated, toastError, user?.idUser])
 
   const persistLocal = useCallback((nextItems) => {
     setItems(nextItems)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextItems))
   }, [])
 
+  const refreshCart = useCallback(async () => {
+    if (!isAuthenticated || !cartId) return
+
+    try {
+      const syncedItems = await getCartItems(cartId)
+      setItems(syncedItems.map(mapCartProduct))
+    } catch (error) {
+      toastError(error.message || 'No se pudo actualizar el carrito')
+    }
+  }, [cartId, isAuthenticated, toastError])
+
   const addItem = async (product, quantity = 1) => {
     if (!product || product.stock === 0) return
 
     if (isAuthenticated && cartId) {
-      setCartError('')
       try {
         const existing = items.find((entry) => entry.product.idProduct === product.idProduct)
         const nextQuantity = Math.min(
@@ -179,9 +175,10 @@ export function CartProvider({ children }) {
           setItems((current) => [...current, mapCartProduct(created)])
         }
 
-        showCartToast(product.productName)
+        notifyAdded(product.productName)
       } catch (error) {
-        setCartError(error.message || 'No se pudo agregar al carrito')
+        toastError(error.message || 'No se pudo agregar al carrito')
+        await refreshCart()
       }
       return
     }
@@ -197,7 +194,7 @@ export function CartProvider({ children }) {
             : entry,
         ),
       )
-      showCartToast(product.productName)
+      notifyAdded(product.productName)
       return
     }
 
@@ -210,7 +207,7 @@ export function CartProvider({ children }) {
         unitPrice: product.price,
       },
     ])
-    showCartToast(product.productName)
+    notifyAdded(product.productName)
   }
 
   const updateQuantity = async (idProduct, quantity) => {
@@ -220,7 +217,6 @@ export function CartProvider({ children }) {
     const safeQuantity = Math.max(1, Math.min(quantity, entry.product.stock))
 
     if (isAuthenticated && cartId && entry.idCartProduct) {
-      setCartError('')
       try {
         const updated = await updateCartItem(entry.idCartProduct, safeQuantity)
         setItems((current) =>
@@ -229,7 +225,8 @@ export function CartProvider({ children }) {
           ),
         )
       } catch (error) {
-        setCartError(error.message || 'No se pudo actualizar la cantidad')
+        toastError(error.message || 'No se pudo actualizar la cantidad')
+        await refreshCart()
       }
       return
     }
@@ -246,14 +243,13 @@ export function CartProvider({ children }) {
     if (!entry) return
 
     if (isAuthenticated && cartId && entry.idCartProduct) {
-      setCartError('')
       try {
         await removeCartItem(entry.idCartProduct)
         setItems((current) =>
           current.filter((item) => item.product.idProduct !== idProduct),
         )
       } catch (error) {
-        setCartError(error.message || 'No se pudo eliminar el producto')
+        toastError(error.message || 'No se pudo eliminar el producto')
       }
       return
     }
@@ -261,14 +257,23 @@ export function CartProvider({ children }) {
     persistLocal(items.filter((item) => item.product.idProduct !== idProduct))
   }
 
+  const clearDiscount = useCallback(() => {
+    setAppliedDiscount(null)
+  }, [])
+
+  const applyDiscount = useCallback((discount) => {
+    setAppliedDiscount({
+      code: discount.code,
+      percentage: discount.percentage,
+    })
+  }, [])
+
   const clearCart = () => {
     setItems([])
     if (!isAuthenticated) {
       localStorage.removeItem(STORAGE_KEY)
     }
-    setDiscountCode('')
-    setDiscountPercent(0)
-    setDiscountMessage('')
+    setAppliedDiscount(null)
   }
 
   const subtotal = useMemo(
@@ -302,23 +307,21 @@ export function CartProvider({ children }) {
         items,
         cartId,
         syncing,
-        cartError,
-        cartToast,
         itemCount,
         subtotal,
         shipping,
         discountCode,
         discountPercent,
         discountAmount,
-        discountMessage,
         total,
-        setDiscountCode,
-        setDiscountPercent,
-        setDiscountMessage,
+        appliedDiscount,
+        applyDiscount,
+        clearDiscount,
         addItem,
         updateQuantity,
         removeItem,
         clearCart,
+        refreshCart,
       }}
     >
       {children}

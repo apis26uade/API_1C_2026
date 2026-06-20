@@ -13,6 +13,10 @@ export class ApiError extends Error {
 async function parseErrorBody(res) {
   try {
     const body = await res.json()
+    if (body.errors && typeof body.errors === 'object') {
+      const firstError = Object.values(body.errors)[0]
+      if (firstError) return String(firstError)
+    }
     return body.error ?? body.message ?? `Error ${res.status}`
   } catch {
     return `Error ${res.status}`
@@ -51,7 +55,10 @@ export async function apiFetch(path, options = {}) {
   if (!res.ok) {
     const message =
       typeof data === 'object' && data !== null
-        ? (data.error ?? data.message ?? `Error ${res.status}`)
+        ? (data.error ??
+          (data.errors ? Object.values(data.errors)[0] : null) ??
+          data.message ??
+          `Error ${res.status}`)
         : `Error ${res.status}`
     throw new ApiError(message, res.status)
   }
@@ -96,6 +103,21 @@ export const getProductById = (id) => apiFetch(`/products/${id}`)
 
 export const getCategories = () => apiFetch('/categories')
 
+export const createCategory = (categoryName) =>
+  apiFetch('/categories', {
+    method: 'POST',
+    body: JSON.stringify({ categoryName: categoryName.trim() }),
+  })
+
+export const updateCategory = (id, categoryName) =>
+  apiFetch(`/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ categoryName: categoryName.trim() }),
+  })
+
+export const deleteCategory = (id) =>
+  apiFetch(`/categories/${id}`, { method: 'DELETE' })
+
 export const createProduct = (product) =>
   apiFetch('/products', { method: 'POST', body: JSON.stringify(product) })
 
@@ -132,11 +154,41 @@ export const updateCartItem = (id, quantity) =>
 export const removeCartItem = (id) =>
   apiFetch(`/cart-products/${id}`, { method: 'DELETE' })
 
+export const validateCartStock = async (cartId) => {
+  const items = await getCartItems(cartId)
+  const problems = []
+
+  for (const item of items) {
+    const name = item.product?.productName ?? 'Producto'
+    const stock = item.product?.stock ?? 0
+
+    if (stock <= 0) {
+      problems.push(`"${name}" ya no tiene stock`)
+      continue
+    }
+
+    if (item.quantity > stock) {
+      problems.push(`"${name}": pedis ${item.quantity}, hay ${stock} disponible${stock !== 1 ? 's' : ''}`)
+    }
+  }
+
+  if (problems.length) {
+    throw new ApiError(`Stock insuficiente: ${problems.join('. ')}`, 400)
+  }
+
+  return items
+}
+
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
 export const getOrders = () => apiFetch('/orders')
 
+export const getOrdersWithItems = () => apiFetch('/orders?includeItems=true')
+
 export const getUserOrders = (userId) => apiFetch(`/orders/user/${userId}`)
+
+export const getUserOrdersWithItems = (userId) =>
+  apiFetch(`/orders/user/${userId}?includeItems=true`)
 
 export const getOrder = (id) => apiFetch(`/orders/${id}`)
 
@@ -147,16 +199,16 @@ export const updateOrderStatus = (id, status) =>
     method: 'PATCH',
   })
 
-export const createOrder = async ({ userId, cartId, discountCode }) => {
-  const params = new URLSearchParams({
-    userId: String(userId),
-    cartId: String(cartId),
+export const createOrder = async ({ userId, cartId, discountCode, shipping }) =>
+  apiFetch('/orders', {
+    method: 'POST',
+    body: JSON.stringify({
+      userId,
+      cartId,
+      discountCode: discountCode?.trim() || undefined,
+      shipping,
+    }),
   })
-  if (discountCode?.trim()) {
-    params.set('discountCode', discountCode.trim())
-  }
-  return apiFetch(`/orders?${params}`, { method: 'POST' })
-}
 
 export const mapOrderItems = (items) =>
   items.map((item) => ({
@@ -188,6 +240,15 @@ export const enrichOrder = (order, items) => {
     discountAmount,
     shippingCost: 0,
     discountCode: order.discount?.code ?? null,
+    shipping: {
+      name: order.shippingName ?? '',
+      email: order.shippingEmail ?? order.user?.email ?? '',
+      phone: order.shippingPhone ?? '',
+      address: order.shippingAddress ?? '',
+      city: order.shippingCity ?? '',
+      postalCode: order.shippingPostalCode ?? '',
+      notes: order.shippingNotes ?? '',
+    },
   }
 }
 
@@ -196,13 +257,8 @@ export const fetchOrderDetail = async (idOrder) => {
   return enrichOrder(order, items)
 }
 
-export const fetchOrdersWithItems = async (orders) =>
-  Promise.all(
-    orders.map(async (order) => {
-      const items = await getOrderItems(order.idOrder)
-      return enrichOrder(order, items)
-    }),
-  )
+export const mapOrdersWithItems = (entries) =>
+  entries.map(({ order, items }) => enrichOrder(order, items))
 
 // ─── Discounts ───────────────────────────────────────────────────────────────
 

@@ -33,6 +33,7 @@ public class Product {
     @Column(nullable = false)
     private String productName;
 
+    @Column(columnDefinition = "TEXT")
     private String productDescription;
 
     @Column(nullable = false)
@@ -41,5 +42,6 @@ public class Product {
     @Column(nullable = false)
     private int stock;
 
+    @Column(columnDefinition = "TEXT")
     private String imageProduct;
 }

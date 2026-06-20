@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext.jsx'
 
 const adminLinks = [
   { to: '/admin/productos', label: 'Productos' },
+  { to: '/admin/categorias', label: 'Categorias' },
   { to: '/admin/pedidos', label: 'Pedidos' },
 ]
 

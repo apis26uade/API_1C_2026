@@ -4,25 +4,32 @@ import { PageError, PageLoader } from '../components/AsyncState.jsx'
 import { HeartOutlineIcon, LeafIcon, RecycleIcon } from '../components/Icons.jsx'
 import ProductCard from '../components/ProductCard.jsx'
 import {
-  categories,
-  categoryImages,
+  categories as fallbackCategories,
+  getCategoryImage,
   heroImage,
   philosophyImage,
 } from '../data/products.js'
-import { getProducts } from '../services/api.js'
+import { getCategories, getProducts } from '../services/api.js'
+import { useToast } from '../context/ToastContext.jsx'
 
 function Home() {
+  const { toastSuccess } = useToast()
   const [products, setProducts] = useState([])
+  const [catalogCategories, setCatalogCategories] = useState(fallbackCategories)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
-  const [subscribed, setSubscribed] = useState(false)
 
   const loadProducts = () => {
     setLoading(true)
     setError('')
-    getProducts()
-      .then(setProducts)
+    Promise.all([getProducts(), getCategories()])
+      .then(([nextProducts, nextCategories]) => {
+        setProducts(nextProducts)
+        if (nextCategories.length > 0) {
+          setCatalogCategories(nextCategories)
+        }
+      })
       .catch((fetchError) => setError(fetchError.message))
       .finally(() => setLoading(false))
   }
@@ -33,7 +40,7 @@ function Home() {
 
   const handleNewsletter = (event) => {
     event.preventDefault()
-    setSubscribed(true)
+    toastSuccess('Gracias por suscribirte!')
     setEmail('')
   }
 
@@ -62,7 +69,7 @@ function Home() {
               <Link className="button primary" to="/catalogo">
                 Ver Colección
               </Link>
-              <Link className="button ghost" to="/catalogo?categoria=1">
+              <Link className="button ghost" to={`/catalogo?categoria=${catalogCategories[0]?.idCategory ?? 1}`}>
                 Vestidos
               </Link>
             </div>
@@ -106,13 +113,14 @@ function Home() {
           <h2>Nuestras Colecciones</h2>
         </div>
         <div className="category-grid">
-          {categories.map((category) => (
+          {catalogCategories.map((category) => (
             <Link
               className="category-card"
               key={category.idCategory}
               to={`/catalogo?categoria=${category.idCategory}`}
+              aria-label={`Ver categoria ${category.categoryName}`}
             >
-              <img src={categoryImages[category.idCategory]} alt={category.categoryName} />
+              <img src={getCategoryImage(category)} alt={category.categoryName} />
               <span>{category.categoryName}</span>
             </Link>
           ))}
@@ -195,7 +203,6 @@ function Home() {
             />
             <button type="submit">Suscribirme</button>
           </form>
-          {subscribed ? <p className="success-message">Gracias por suscribirte!</p> : null}
         </div>
       </section>
     </>

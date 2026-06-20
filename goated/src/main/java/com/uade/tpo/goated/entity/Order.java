@@ -39,4 +39,25 @@ public class Order {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "discount_id", nullable = true)
     private Discount discount;
+
+    @Column(nullable = false)
+    private String shippingName;
+
+    @Column(nullable = false)
+    private String shippingEmail;
+
+    @Column(nullable = false)
+    private String shippingPhone;
+
+    @Column(nullable = false)
+    private String shippingAddress;
+
+    @Column(nullable = false)
+    private String shippingCity;
+
+    @Column(nullable = false)
+    private String shippingPostalCode;
+
+    @Column(columnDefinition = "TEXT")
+    private String shippingNotes;
 }

@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/discounts/code/**").permitAll()
 
                 // Sólo ADMIN: gestión de catálogo y usuarios
                 .requestMatchers(HttpMethod.POST,   "/categories/**").hasRole("ADMIN")

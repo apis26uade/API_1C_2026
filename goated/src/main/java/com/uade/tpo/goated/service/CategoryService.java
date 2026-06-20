@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import com.uade.tpo.goated.entity.Category;
 import com.uade.tpo.goated.exception.ResourceNotFoundException;
 import com.uade.tpo.goated.repository.CategoryRepository;
+import com.uade.tpo.goated.repository.ProductRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
 
     public List<Category> getCategories() {
         return categoryRepository.findAll();
@@ -38,6 +40,10 @@ public class CategoryService {
     public void deleteCategory(Long id) {
         if (!categoryRepository.existsById(id)) {
             throw new ResourceNotFoundException("Categoría no encontrada: " + id);
+        }
+        if (!productRepository.findByCategoryIdCategory(id).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No se puede eliminar una categoria que tiene productos asociados");
         }
         categoryRepository.deleteById(id);
     }

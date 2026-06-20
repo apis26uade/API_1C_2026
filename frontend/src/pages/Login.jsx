@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EyeIcon, EyeOffIcon } from '../components/Icons.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 
 const LOGIN_IMAGE =
   'https://images.unsplash.com/photo-1751243958813-8ec1669abef9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=900&q=85'
@@ -10,10 +11,10 @@ function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
+  const { toastError } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const redirectTo =
@@ -24,13 +25,12 @@ function Login() {
   const handleSubmit = async (event) => {
     event.preventDefault()
     setLoading(true)
-    setError('')
 
     try {
       await login(email, password)
       navigate(redirectTo, { replace: true })
     } catch (submitError) {
-      setError(submitError.message || 'Error al iniciar sesion')
+      toastError(submitError.message || 'Error al iniciar sesion')
     } finally {
       setLoading(false)
     }
@@ -87,8 +87,6 @@ function Login() {
                 </button>
               </div>
             </div>
-
-            {error ? <p className="auth-error">{error}</p> : null}
 
             <button className="auth-submit-btn" type="submit" disabled={loading}>
               {loading ? 'Ingresando...' : 'Ingresar'}

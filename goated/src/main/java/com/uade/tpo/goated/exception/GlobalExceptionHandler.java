@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -28,6 +29,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArg(IllegalArgumentException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String cause = ex.getMostSpecificCause().getMessage();
+        if (cause != null && cause.contains("image_product")) {
+            return buildResponse(HttpStatus.BAD_REQUEST, "La URL de la imagen es demasiado larga para guardarse");
+        }
+        if (cause != null && (cause.contains("foreign key") || cause.contains("FOREIGN KEY"))) {
+            return buildResponse(HttpStatus.BAD_REQUEST,
+                    "No se puede eliminar porque el registro esta en uso (carrito u pedido)");
+        }
+        return buildResponse(HttpStatus.BAD_REQUEST, "Datos invalidos para guardar el registro");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import SectionTitle from '../components/SectionTitle.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 
 const initialForm = {
   name: '',
@@ -8,8 +9,8 @@ const initialForm = {
 }
 
 function Contact() {
+  const { toastSuccess } = useToast()
   const [form, setForm] = useState(initialForm)
-  const [sent, setSent] = useState(false)
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -18,7 +19,7 @@ function Contact() {
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    setSent(true)
+    toastSuccess('Consulta enviada. Gracias!')
     setForm(initialForm)
   }
 
@@ -75,7 +76,6 @@ function Contact() {
         <button className="button primary" type="submit">
           Enviar consulta
         </button>
-        {sent ? <p className="success-message">Consulta enviada. Gracias!</p> : null}
       </form>
     </section>
   )

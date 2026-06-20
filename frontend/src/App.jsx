@@ -15,6 +15,7 @@ import Orders from './pages/Orders.jsx'
 import ProductDetail from './pages/ProductDetail.jsx'
 import Products from './pages/Products.jsx'
 import Register from './pages/Register.jsx'
+import AdminCategories from './pages/admin/AdminCategories.jsx'
 import AdminOrders from './pages/admin/AdminOrders.jsx'
 import AdminProducts from './pages/admin/AdminProducts.jsx'
 
@@ -41,6 +42,7 @@ function App() {
       >
         <Route index element={<Navigate to="productos" replace />} />
         <Route path="productos" element={<AdminProducts />} />
+        <Route path="categorias" element={<AdminCategories />} />
         <Route path="pedidos" element={<AdminOrders />} />
       </Route>
 

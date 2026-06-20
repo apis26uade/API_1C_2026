@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRightIcon, TagIcon, TrashIcon } from '../components/Icons.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import { getDiscountByCode } from '../services/api.js'
 
 const formatPrice = (price) =>
@@ -15,6 +16,7 @@ const formatPrice = (price) =>
 function Cart() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
+  const { toastSuccess, toastError } = useToast()
   const {
     items,
     itemCount,
@@ -23,40 +25,61 @@ function Cart() {
     discountCode,
     discountPercent,
     discountAmount,
-    discountMessage,
     total,
-    setDiscountCode,
-    setDiscountPercent,
-    setDiscountMessage,
-    cartError,
+    appliedDiscount,
+    applyDiscount,
+    clearDiscount,
     syncing,
     updateQuantity,
     removeItem,
+    refreshCart,
   } = useCart()
+  const [discountInput, setDiscountInput] = useState('')
   const [applyingDiscount, setApplyingDiscount] = useState(false)
+
+  useEffect(() => {
+    if (isAuthenticated && !syncing) {
+      refreshCart()
+    }
+  }, [isAuthenticated, syncing, refreshCart])
 
   const handleApplyDiscount = async (event) => {
     event.preventDefault()
-    const code = discountCode.trim()
+    if (applyingDiscount) return
+
+    const code = discountInput.trim()
     if (!code) return
 
     if (!isAuthenticated) {
-      setDiscountPercent(0)
-      setDiscountMessage('Inicia sesion para aplicar un codigo de descuento')
+      toastError('Inicia sesion para aplicar un codigo de descuento')
+      return
+    }
+
+    if (appliedDiscount) {
+      if (appliedDiscount.code.toUpperCase() === code.toUpperCase()) {
+        toastError('Ese codigo ya esta aplicado en esta compra')
+        return
+      }
+      toastError('Solo podes usar un codigo por compra. Quita el actual para cambiar.')
       return
     }
 
     setApplyingDiscount(true)
     try {
       const discount = await getDiscountByCode(code)
-      setDiscountPercent(discount.percentage)
-      setDiscountMessage(`Codigo ${discount.code} aplicado (${discount.percentage}%)`)
+      applyDiscount(discount)
+      setDiscountInput('')
+      toastSuccess(`Codigo ${discount.code} aplicado (${discount.percentage}%)`)
     } catch (discountError) {
-      setDiscountPercent(0)
-      setDiscountMessage(discountError.message || 'Codigo invalido')
+      toastError(discountError.message || 'Codigo invalido')
     } finally {
       setApplyingDiscount(false)
     }
+  }
+
+  const handleRemoveDiscount = () => {
+    clearDiscount()
+    toastSuccess('Codigo de descuento quitado')
   }
 
   const handleFinalize = () => {
@@ -89,7 +112,6 @@ function Cart() {
       </h1>
 
       {syncing ? <p className="async-hint">Sincronizando carrito con el servidor...</p> : null}
-      {cartError ? <p className="auth-error">{cartError}</p> : null}
 
       <div className="cart-layout">
         <div className="cart-items">
@@ -148,18 +170,31 @@ function Cart() {
               <TagIcon />
               Codigo de descuento
             </label>
-            <div className="discount-row">
-              <input
-                value={discountCode}
-                onChange={(event) => setDiscountCode(event.target.value)}
-                placeholder="VERANO10"
-              />
-              <button className="button apply-discount" type="submit" disabled={applyingDiscount}>
-                Aplicar
-              </button>
-            </div>
+
+            {appliedDiscount ? (
+              <div className="cart-applied-discount">
+                <span>
+                  <strong>{appliedDiscount.code}</strong> ({appliedDiscount.percentage}%)
+                </span>
+                <button className="text-link" type="button" onClick={handleRemoveDiscount}>
+                  Quitar
+                </button>
+              </div>
+            ) : (
+              <div className="discount-row">
+                <input
+                  value={discountInput}
+                  onChange={(event) => setDiscountInput(event.target.value)}
+                  placeholder="Tu codigo"
+                />
+                <button className="button apply-discount" type="submit" disabled={applyingDiscount}>
+                  {applyingDiscount ? 'Validando...' : 'Aplicar'}
+                </button>
+              </div>
+            )}
+
+            <p className="checkout-field-hint">Solo un codigo por compra.</p>
           </form>
-          {discountMessage ? <p className="discount-message">{discountMessage}</p> : null}
 
           <div className="cart-summary-row">
             <span>Subtotal</span>
@@ -171,7 +206,7 @@ function Cart() {
           </div>
           {discountPercent > 0 ? (
             <div className="cart-summary-row discount-row">
-              <span>Descuento ({discountPercent}%)</span>
+              <span>Descuento ({discountCode}, {discountPercent}%)</span>
               <strong>-{formatPrice(discountAmount)}</strong>
             </div>
           ) : null}

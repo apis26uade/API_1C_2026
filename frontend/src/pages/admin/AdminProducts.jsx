@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PageError, PageLoader } from '../../components/AsyncState.jsx'
+import { useToast } from '../../context/ToastContext.jsx'
 import {
   createProduct,
   deleteProduct,
@@ -26,13 +27,13 @@ const formatPrice = (price) =>
   }).format(price)
 
 function AdminProducts() {
+  const { toastSuccess, toastError, confirmAction } = useToast()
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
-  const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
 
   const loadData = () => {
@@ -70,13 +71,11 @@ function AdminProducts() {
       imageProduct: product.imageProduct,
       categoryId: String(product.category?.idCategory ?? categories[0]?.idCategory ?? ''),
     })
-    setMessage('')
     setShowForm(true)
   }
 
   const startCreate = () => {
     setForm({ ...emptyForm, categoryId: String(categories[0]?.idCategory ?? '') })
-    setMessage('')
     setShowForm(true)
   }
 
@@ -97,33 +96,39 @@ function AdminProducts() {
   const handleSubmit = async (event) => {
     event.preventDefault()
     setSaving(true)
-    setMessage('')
     try {
       if (form.idProduct) {
         await updateProduct(form.idProduct, buildPayload())
-        setMessage('Producto actualizado')
+        toastSuccess('Producto actualizado')
       } else {
         await createProduct(buildPayload())
-        setMessage('Producto creado')
+        toastSuccess('Producto creado')
       }
       closeForm()
       loadData()
     } catch (submitError) {
-      setMessage(submitError.message || 'No se pudo guardar el producto')
+      toastError(submitError.message || 'No se pudo guardar el producto')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (idProduct) => {
-    if (!window.confirm('Eliminar este producto?')) return
-    setMessage('')
+    const confirmed = await confirmAction({
+      title: 'Eliminar producto',
+      message: 'Esta accion no se puede deshacer. Queres eliminar este producto?',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      destructive: true,
+    })
+    if (!confirmed) return
+
     try {
       await deleteProduct(idProduct)
-      setMessage('Producto eliminado')
+      toastSuccess('Producto eliminado')
       loadData()
     } catch (deleteError) {
-      setMessage(deleteError.message || 'No se pudo eliminar el producto')
+      toastError(deleteError.message || 'No se pudo eliminar el producto')
     }
   }
 
@@ -146,8 +151,6 @@ function AdminProducts() {
           Nuevo producto
         </button>
       </header>
-
-      {message ? <p className="admin-flash">{message}</p> : null}
 
       <div className={showForm ? 'admin-split' : 'admin-split admin-split-list-only'}>
         {showForm ? (
@@ -204,7 +207,16 @@ function AdminProducts() {
             </label>
             <label>
               URL imagen
-              <input name="imageProduct" value={form.imageProduct} onChange={handleChange} />
+              <input
+                name="imageProduct"
+                value={form.imageProduct}
+                onChange={handleChange}
+                placeholder="https://..."
+              />
+              <span className="checkout-field-hint">
+                Usa un enlace directo a la imagen (Unsplash, .jpg, .png). Evita links de
+                Google u otras paginas de redireccion.
+              </span>
             </label>
             <div className="admin-form-actions">
               <button className="button primary" type="submit" disabled={saving}>

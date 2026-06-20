@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageError, PageLoader } from '../components/AsyncState.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { fetchOrdersWithItems, getUserOrders } from '../services/api.js'
+import { getUserOrdersWithItems, mapOrdersWithItems } from '../services/api.js'
 import { formatOrderId, ORDER_STATUSES } from '../services/orders.js'
 
 const formatPrice = (price) =>
@@ -25,8 +25,8 @@ function Orders() {
     if (!user?.idUser) return
     setLoading(true)
     setError('')
-    getUserOrders(user.idUser)
-      .then((rawOrders) => fetchOrdersWithItems(rawOrders))
+    getUserOrdersWithItems(user.idUser)
+      .then(mapOrdersWithItems)
       .then(setOrders)
       .catch((fetchError) => setError(fetchError.message))
       .finally(() => setLoading(false))

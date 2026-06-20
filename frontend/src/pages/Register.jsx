@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EyeIcon, EyeOffIcon } from '../components/Icons.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 
 const REGISTER_IMAGE =
   'https://images.unsplash.com/photo-1624633100912-2fc4f1002778?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=900&q=85'
@@ -10,6 +11,7 @@ function Register() {
   const navigate = useNavigate()
   const location = useLocation()
   const { register } = useAuth()
+  const { toastError, toastSuccess } = useToast()
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -17,7 +19,6 @@ function Register() {
     confirm: '',
   })
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const redirectTo =
@@ -36,23 +37,23 @@ function Register() {
     event.preventDefault()
 
     if (form.password !== form.confirm) {
-      setError('Las contrasenas no coinciden')
+      toastError('Las contrasenas no coinciden')
       return
     }
 
     if (form.password.length < 6) {
-      setError('La contrasena debe tener al menos 6 caracteres')
+      toastError('La contrasena debe tener al menos 6 caracteres')
       return
     }
 
     setLoading(true)
-    setError('')
 
     try {
       await register(form.name, form.email, form.password)
+      toastSuccess('Cuenta creada correctamente')
       navigate(redirectTo, { replace: true })
     } catch (submitError) {
-      setError(submitError.message || 'Error al registrarse')
+      toastError(submitError.message || 'Error al registrarse')
     } finally {
       setLoading(false)
     }
@@ -130,8 +131,6 @@ function Register() {
                 <p className="auth-field-hint">Las contrasenas no coinciden</p>
               ) : null}
             </div>
-
-            {error ? <p className="auth-error">{error}</p> : null}
 
             <button
               className="auth-submit-btn"

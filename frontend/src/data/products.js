@@ -14,6 +14,19 @@ export const categoryImages = {
   5: 'https://images.unsplash.com/photo-1773335954232-957e8945827e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=500&q=80',
 }
 
+export const getCategoryImage = (category) => {
+  if (categoryImages[category.idCategory]) {
+    return categoryImages[category.idCategory]
+  }
+
+  const staticMatch = categories.find(
+    (item) =>
+      item.categoryName.toLowerCase() === String(category.categoryName ?? '').toLowerCase(),
+  )
+
+  return staticMatch ? categoryImages[staticMatch.idCategory] : heroImage
+}
+
 export const heroImage =
   'https://images.unsplash.com/photo-1768033976461-61ea7527ac1e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1400&q=85'
 

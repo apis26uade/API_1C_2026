@@ -139,6 +139,24 @@ function OrderDetail() {
             <h2>Estado</h2>
             <p>{statusLabel(order.status)}</p>
           </section>
+
+          {order.shipping?.name ? (
+            <section className="card-panel">
+              <h2>Envio</h2>
+              <ul className="order-shipping-list">
+                <li>
+                  <strong>{order.shipping.name}</strong>
+                </li>
+                <li>{order.shipping.email}</li>
+                <li>{order.shipping.phone}</li>
+                <li>{order.shipping.address}</li>
+                <li>
+                  {order.shipping.city}, CP {order.shipping.postalCode}
+                </li>
+                {order.shipping.notes ? <li>{order.shipping.notes}</li> : null}
+              </ul>
+            </section>
+          ) : null}
         </aside>
       </div>
 

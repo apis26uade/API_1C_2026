@@ -9,8 +9,9 @@ import {
 } from '../components/Icons.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import { PAYMENT_METHODS } from '../data/paymentMethods.js'
-import { createOrder } from '../services/api.js'
+import { createOrder, validateCartStock } from '../services/api.js'
 import { formatOrderId } from '../services/orders.js'
 import {
   formatCardNumberInput,
@@ -21,6 +22,23 @@ import {
   validatePaymentForm,
   validateShippingForm,
 } from '../utils/checkoutValidation.js'
+
+const normalizePhoneForApi = (phone) => {
+  const trimmed = phone.trim()
+  const hasPlus = trimmed.startsWith('+')
+  const digits = trimmed.replace(/\D/g, '')
+  return hasPlus ? `+${digits}` : digits
+}
+
+const buildShippingPayload = (form) => ({
+  name: form.name.trim(),
+  email: form.email.trim(),
+  phone: normalizePhoneForApi(form.phone),
+  address: form.address.trim(),
+  city: form.city.trim(),
+  postalCode: form.postalCode.trim().toUpperCase(),
+  notes: form.notes.trim() || undefined,
+})
 
 const formatPrice = (price) =>
   new Intl.NumberFormat('es-AR', {
@@ -53,7 +71,9 @@ function Checkout() {
     discountAmount,
     total,
     clearCart,
+    refreshCart,
   } = useCart()
+  const { toastSuccess, toastError } = useToast()
 
   const [step, setStep] = useState('shipping')
   const [shippingForm, setShippingForm] = useState(initialShipping)
@@ -65,7 +85,6 @@ function Checkout() {
     cardName: '',
   })
   const [orderId, setOrderId] = useState(null)
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [shippingErrors, setShippingErrors] = useState({})
   const [paymentErrors, setPaymentErrors] = useState({})
@@ -143,12 +162,14 @@ function Checkout() {
 
   const handleConfirmOrder = async () => {
     if (!user?.idUser) {
-      setError('Debes iniciar sesion para confirmar la compra')
+      toastError('Debes iniciar sesion para confirmar la compra')
       return
     }
 
     if (!cartId) {
-      setError(syncing ? 'Sincronizando carrito, intenta de nuevo en un momento' : 'No se encontro el carrito')
+      toastError(
+        syncing ? 'Sincronizando carrito, intenta de nuevo en un momento' : 'No se encontro el carrito',
+      )
       return
     }
 
@@ -156,7 +177,6 @@ function Checkout() {
     if (!shippingResult.valid) {
       setShippingErrors(shippingResult.errors)
       setPaymentErrors({})
-      setError('')
       setStep('shipping')
       return
     }
@@ -165,26 +185,28 @@ function Checkout() {
       const paymentResult = validatePaymentForm(cardForm)
       if (!paymentResult.valid) {
         setPaymentErrors(paymentResult.errors)
-        setError('')
         return
       }
     }
 
     setLoading(true)
-    setError('')
     setPaymentErrors({})
 
     try {
+      await validateCartStock(cartId)
       const order = await createOrder({
         userId: user.idUser,
         cartId,
         discountCode: discountPercent > 0 ? discountCode.trim() : undefined,
+        shipping: buildShippingPayload(shippingForm),
       })
       setOrderId(order.idOrder)
       clearCart()
+      toastSuccess('Compra confirmada correctamente')
       setStep('success')
     } catch (submitError) {
-      setError(submitError.message || 'No se pudo confirmar la compra')
+      toastError(submitError.message || 'No se pudo confirmar la compra')
+      await refreshCart()
     } finally {
       setLoading(false)
     }
@@ -450,8 +472,6 @@ function Checkout() {
                 <CheckIcon size={16} />
                 Pago simulado para demostracion. No se procesa un cobro real.
               </p>
-
-              {error ? <p className="auth-error">{error}</p> : null}
 
               <div className="checkout-payment-actions">
                 <button

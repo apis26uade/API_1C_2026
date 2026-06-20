@@ -13,21 +13,26 @@ const readStoredAuth = () => {
   }
 }
 
+const persistSession = (session) => {
+  if (session?.token) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(session))
+    localStorage.setItem('boho_token', session.token)
+    return
+  }
+  localStorage.removeItem(AUTH_KEY)
+  localStorage.removeItem('boho_token')
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredAuth)
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem(AUTH_KEY, JSON.stringify(user))
-      localStorage.setItem('boho_token', user.token)
-    } else {
-      localStorage.removeItem(AUTH_KEY)
-      localStorage.removeItem('boho_token')
-    }
+    persistSession(user)
   }, [user])
 
   const login = async (email, password) => {
     const session = await loginUser(email, password)
+    persistSession(session)
     setUser(session)
     return session
   }
@@ -35,11 +40,15 @@ export function AuthProvider({ children }) {
   const register = async (name, email, password) => {
     const session = await registerUser(name, email, password)
     const nextUser = { ...session, name: session.name ?? name.trim() }
+    persistSession(nextUser)
     setUser(nextUser)
     return nextUser
   }
 
-  const logout = () => setUser(null)
+  const logout = () => {
+    persistSession(null)
+    setUser(null)
+  }
 
   const value = useMemo(
     () => ({

@@ -1,14 +1,28 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
-import { categories } from '../data/products.js'
+import { categories as fallbackCategories } from '../data/products.js'
+import { getCategories } from '../services/api.js'
 import { ChevronDownIcon, ShoppingBagIcon } from './Icons.jsx'
 
 function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [categories, setCategories] = useState(fallbackCategories)
   const { isAuthenticated, isAdmin, user, logout } = useAuth()
   const { itemCount } = useCart()
+
+  useEffect(() => {
+    getCategories()
+      .then((nextCategories) => {
+        if (nextCategories.length > 0) {
+          setCategories(nextCategories)
+        }
+      })
+      .catch(() => {
+        setCategories(fallbackCategories)
+      })
+  }, [])
 
   const closeMobileMenu = () => setMobileOpen(false)
 
