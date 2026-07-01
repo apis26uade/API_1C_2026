@@ -1,30 +1,35 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
-import { useCart } from '../context/CartContext.jsx'
+import { useSelector, useDispatch } from 'react-redux'
+import { logout } from '../features/auth/authSlice.js'
+import { fetchCategories } from '../features/products/productThunks.js'
 import { categories as fallbackCategories } from '../data/products.js'
-import { getCategories } from '../services/api.js'
 import { ChevronDownIcon, ShoppingBagIcon } from './Icons.jsx'
 
 function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [categories, setCategories] = useState(fallbackCategories)
-  const { isAuthenticated, isAdmin, user, logout } = useAuth()
-  const { itemCount } = useCart()
+  
+  const dispatch = useDispatch()
+  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const isAdmin = user?.role === 'ROLE_ADMIN'
+  const cartItems = useSelector((state) => state.cart.items)
+  const categories = useSelector((state) => state.products.categories)
+  const categoriesStatus = useSelector((state) => state.products.status)
+  
+  const itemCount = cartItems.reduce((count, entry) => count + entry.quantity, 0)
+  const displayCategories = categories.length > 0 ? categories : fallbackCategories
 
   useEffect(() => {
-    getCategories()
-      .then((nextCategories) => {
-        if (nextCategories.length > 0) {
-          setCategories(nextCategories)
-        }
-      })
-      .catch(() => {
-        setCategories(fallbackCategories)
-      })
-  }, [])
+    if (categoriesStatus === 'idle') {
+      dispatch(fetchCategories())
+    }
+  }, [categoriesStatus, dispatch])
 
   const closeMobileMenu = () => setMobileOpen(false)
+  const handleLogout = () => {
+    dispatch(logout())
+    closeMobileMenu()
+  }
 
   return (
     <header className="navbar">
@@ -46,7 +51,7 @@ function Navbar() {
             </span>
             <div className="collections-menu">
               <p>Explorar por categoria</p>
-              {categories.map((category) => (
+              {displayCategories.map((category) => (
                 <Link
                   key={category.idCategory}
                   to={`/catalogo?categoria=${category.idCategory}`}
@@ -73,7 +78,7 @@ function Navbar() {
               <span className="nav-user" title={user?.email}>
                 {user?.name ?? user?.email?.split('@')[0]}
               </span>
-              <button className="nav-link-btn nav-logout" type="button" onClick={logout}>
+              <button className="nav-link-btn nav-logout" type="button" onClick={handleLogout}>
                 Salir
               </button>
             </>
@@ -112,7 +117,7 @@ function Navbar() {
           <NavLink to="/catalogo" onClick={closeMobileMenu}>
             Catalogo
           </NavLink>
-          {categories.map((category) => (
+          {displayCategories.map((category) => (
             <Link
               key={category.idCategory}
               to={`/catalogo?categoria=${category.idCategory}`}
@@ -129,7 +134,7 @@ function Navbar() {
           </NavLink>
           <div className="mobile-auth">
             {isAuthenticated ? (
-              <button type="button" onClick={() => { logout(); closeMobileMenu() }}>
+              <button type="button" onClick={handleLogout}>
                 Salir
               </button>
             ) : (

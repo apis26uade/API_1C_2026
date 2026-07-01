@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { useCart } from '../context/CartContext.jsx'
+import { useSelector, useDispatch } from 'react-redux';
+import { addLocalItem, updateLocalItemQuantity, removeLocalItem, clearCart } from '../features/cart/cartSlice.js';
 
 const formatPrice = (price) =>
   new Intl.NumberFormat('es-AR', {
@@ -9,7 +10,9 @@ const formatPrice = (price) =>
   }).format(price)
 
 function ProductCard({ product }) {
-  const { addItem } = useCart()
+    const dispatch = useDispatch();
+  const { items, itemCount, subtotal, total, appliedDiscount } = useSelector(state => state.cart);
+  const addItem = (product, quantity = 1) => dispatch(addLocalItem({ product, quantity }));
   const categoryName = product.category?.categoryName ?? product.category ?? 'Coleccion'
 
   const handleAddToCart = (event) => {

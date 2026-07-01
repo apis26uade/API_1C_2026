@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EyeIcon, EyeOffIcon } from '../components/Icons.jsx'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../features/auth/authSlice.js';
+import { loginUser, registerUser } from '../features/auth/authThunks.js';
 import { useToast } from '../context/ToastContext.jsx'
 
 const LOGIN_IMAGE =
@@ -10,7 +12,8 @@ const LOGIN_IMAGE =
 function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login } = useAuth()
+    const dispatch = useDispatch();
+  const login = async (email, password) => { return dispatch(loginUser({ email, password })).unwrap(); };
   const { toastError } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

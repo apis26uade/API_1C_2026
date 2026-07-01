@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EyeIcon, EyeOffIcon } from '../components/Icons.jsx'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../features/auth/authSlice.js';
+import { loginUser, registerUser } from '../features/auth/authThunks.js';
 import { useToast } from '../context/ToastContext.jsx'
 
 const REGISTER_IMAGE =
@@ -10,7 +12,8 @@ const REGISTER_IMAGE =
 function Register() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { register } = useAuth()
+    const dispatch = useDispatch();
+  const register = async (name, email, password) => { return dispatch(registerUser({ name, email, password })).unwrap(); };
   const { toastError, toastSuccess } = useToast()
   const [form, setForm] = useState({
     name: '',

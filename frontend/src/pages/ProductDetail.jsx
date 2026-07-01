@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageError, PageLoader } from '../components/AsyncState.jsx'
 import { ArrowLeftIcon, CheckIcon, LeafIcon } from '../components/Icons.jsx'
 import ProductCard from '../components/ProductCard.jsx'
-import { useCart } from '../context/CartContext.jsx'
+import { useSelector, useDispatch } from 'react-redux';
+import { addLocalItem, updateLocalItemQuantity, removeLocalItem, clearCart } from '../features/cart/cartSlice.js';
 import { getProductById, getProducts } from '../services/api.js'
 
 const formatPrice = (price) =>
@@ -22,7 +23,9 @@ function ProductDetail() {
   const [error, setError] = useState('')
   const [notFound, setNotFound] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const { addItem } = useCart()
+    const dispatch = useDispatch();
+  const { items, itemCount, subtotal, total, appliedDiscount } = useSelector(state => state.cart);
+  const addItem = (product, quantity = 1) => dispatch(addLocalItem({ product, quantity }));
 
   const loadProduct = () => {
     setLoading(true)

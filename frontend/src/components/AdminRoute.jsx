@@ -1,11 +1,13 @@
-import { Navigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
+import { Navigate, useLocation } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 
 function AdminRoute({ children }) {
-  const { isAuthenticated, isAdmin } = useAuth()
+  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const isAdmin = user?.role === 'ROLE_ADMIN'
+  const location = useLocation()
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: '/admin' }} replace />
+    return <Navigate to="/login" replace state={{ from: location }} />
   }
 
   if (!isAdmin) {

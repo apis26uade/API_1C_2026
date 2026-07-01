@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRightIcon, TagIcon, TrashIcon } from '../components/Icons.jsx'
-import { useAuth } from '../context/AuthContext.jsx'
-import { useCart } from '../context/CartContext.jsx'
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../features/auth/authSlice.js';
+import { loginUser, registerUser } from '../features/auth/authThunks.js';
+import { addLocalItem, updateLocalItemQuantity, removeLocalItem, clearCart } from '../features/cart/cartSlice.js';
 import { useToast } from '../context/ToastContext.jsx'
 import { getDiscountByCode } from '../services/api.js'
 
@@ -15,25 +17,12 @@ const formatPrice = (price) =>
 
 function Cart() {
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
+    const dispatch = useDispatch();
+  const { user, isAuthenticated } = useSelector(state => state.auth);
   const { toastSuccess, toastError } = useToast()
-  const {
-    items,
-    itemCount,
-    subtotal,
-    shipping,
-    discountCode,
-    discountPercent,
-    discountAmount,
-    total,
-    appliedDiscount,
-    applyDiscount,
-    clearDiscount,
-    syncing,
-    updateQuantity,
-    removeItem,
-    refreshCart,
-  } = useCart()
+    const { items, itemCount, subtotal, total, appliedDiscount } = useSelector(state => state.cart);
+  const removeItem = (id) => dispatch(removeLocalItem(id));
+  const updateQuantity = (idProduct, quantity) => dispatch(updateLocalItemQuantity({ idProduct, quantity }));
   const [discountInput, setDiscountInput] = useState('')
   const [applyingDiscount, setApplyingDiscount] = useState(false)
 

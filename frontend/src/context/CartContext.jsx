@@ -39,7 +39,8 @@ const mapCartProduct = (entry) => ({
 })
 
 export function CartProvider({ children }) {
-  const { user, isAuthenticated } = useAuth()
+    const dispatch = useDispatch();
+  const { user, isAuthenticated } = useSelector(state => state.auth);
   const { toastSuccess, toastError } = useToast()
   const [items, setItems] = useState(readLocalItems)
   const [cartId, setCartId] = useState(null)

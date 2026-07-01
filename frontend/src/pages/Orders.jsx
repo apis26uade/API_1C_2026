@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageError, PageLoader } from '../components/AsyncState.jsx'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../features/auth/authSlice.js';
+import { loginUser, registerUser } from '../features/auth/authThunks.js';
 import { getUserOrdersWithItems, mapOrdersWithItems } from '../services/api.js'
 import { formatOrderId, ORDER_STATUSES } from '../services/orders.js'
 
@@ -16,7 +18,8 @@ const statusLabel = (value) =>
   ORDER_STATUSES.find((status) => status.value === value)?.label ?? value
 
 function Orders() {
-  const { user } = useAuth()
+    const dispatch = useDispatch();
+  const { user, isAuthenticated } = useSelector(state => state.auth);
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

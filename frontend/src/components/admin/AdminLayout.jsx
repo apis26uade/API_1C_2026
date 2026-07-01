@@ -8,7 +8,9 @@ const adminLinks = [
 ]
 
 function AdminLayout() {
-  const { user, logout } = useAuth()
+    const dispatch = useDispatch();
+  const { user, isAuthenticated } = useSelector(state => state.auth);
+  const handleLogout = () => dispatch(logout());
 
   return (
     <div className="admin-shell">
@@ -33,7 +35,7 @@ function AdminLayout() {
           <Link className="admin-foot-link" to="/">
             Volver a la tienda
           </Link>
-          <button className="admin-foot-link" type="button" onClick={logout}>
+          <button className="admin-foot-link" type="button" onClick={handleLogout}>
             Cerrar sesion
           </button>
         </div>

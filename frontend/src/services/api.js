@@ -1,3 +1,5 @@
+import axios from 'axios'
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
 const getToken = () => localStorage.getItem('boho_token')
@@ -10,60 +12,62 @@ export class ApiError extends Error {
   }
 }
 
-async function parseErrorBody(res) {
-  try {
-    const body = await res.json()
-    if (body.errors && typeof body.errors === 'object') {
-      const firstError = Object.values(body.errors)[0]
-      if (firstError) return String(firstError)
-    }
-    return body.error ?? body.message ?? `Error ${res.status}`
-  } catch {
-    return `Error ${res.status}`
+export const api = axios.create({
+  baseURL: BASE_URL,
+})
+
+api.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
-}
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (!error.response) {
+      return Promise.reject(
+        new ApiError('No se pudo conectar con el servidor. Verifica que el backend este activo.', 0)
+      )
+    }
+
+    const { status, data } = error.response
+    let message = `Error ${status}`
+
+    if (typeof data === 'object' && data !== null) {
+      message = data.error ??
+        (data.errors ? Object.values(data.errors)[0] : null) ??
+        data.message ??
+        `Error ${status}`
+    } else if (typeof data === 'string') {
+      message = data || `Error ${status}`
+    }
+
+    return Promise.reject(new ApiError(message, status))
+  }
+)
 
 export async function apiFetch(path, options = {}) {
-  const headers = {
-    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-    ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
-    ...options.headers,
-  }
+  const method = options.method || 'GET'
+  const data = options.body ? JSON.parse(options.body) : undefined
 
-  let res
   try {
-    res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
-  } catch {
-    throw new ApiError(
-      'No se pudo conectar con el servidor. Verifica que el backend este activo.',
-      0,
-    )
+    const response = await api({
+      url: path,
+      method,
+      data,
+      headers: options.headers,
+    })
+    
+    // axios handles 204 No Content by returning empty data
+    if (response.status === 204) return null
+
+    return response.data
+  } catch (error) {
+    throw error // ApiError already thrown by interceptor
   }
-
-  if (res.status === 204) return null
-
-  const text = await res.text()
-  let data = null
-  if (text) {
-    try {
-      data = JSON.parse(text)
-    } catch {
-      data = text
-    }
-  }
-
-  if (!res.ok) {
-    const message =
-      typeof data === 'object' && data !== null
-        ? (data.error ??
-          (data.errors ? Object.values(data.errors)[0] : null) ??
-          data.message ??
-          `Error ${res.status}`)
-        : `Error ${res.status}`
-    throw new ApiError(message, res.status)
-  }
-
-  return data
 }
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
