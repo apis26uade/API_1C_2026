@@ -70,35 +70,6 @@ export async function apiFetch(path, options = {}) {
   }
 }
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-
-export const login = async (email, password) => {
-  const data = await apiFetch('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
-  return {
-    idUser: data.idUser,
-    email: data.email,
-    role: data.role,
-    token: data.token,
-  }
-}
-
-export const register = async (name, email, password) => {
-  const data = await apiFetch('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({ name, email, password, role: 'ROLE_USER' }),
-  })
-  return {
-    idUser: data.idUser,
-    email: data.email,
-    name,
-    role: data.role,
-    token: data.token,
-  }
-}
-
 // ─── Catalog ─────────────────────────────────────────────────────────────────
 
 export const getProducts = () => apiFetch('/products')
@@ -133,30 +104,7 @@ export const deleteProduct = (id) =>
 
 // ─── Cart ────────────────────────────────────────────────────────────────────
 
-export const getOrCreateCart = async (userId) => {
-  try {
-    return await apiFetch(`/cart/user/${userId}`)
-  } catch (error) {
-    if (error.status === 404) {
-      return apiFetch(`/cart?userId=${userId}`, { method: 'POST' })
-    }
-    throw error
-  }
-}
-
-export const getCartItems = (cartId) => apiFetch(`/cart-products/cart/${cartId}`)
-
-export const addCartItem = (cartId, productId, quantity) =>
-  apiFetch(
-    `/cart-products?cartId=${cartId}&productId=${productId}&quantity=${quantity}`,
-    { method: 'POST' },
-  )
-
-export const updateCartItem = (id, quantity) =>
-  apiFetch(`/cart-products/${id}?quantity=${quantity}`, { method: 'PUT' })
-
-export const removeCartItem = (id) =>
-  apiFetch(`/cart-products/${id}`, { method: 'DELETE' })
+const getCartItems = (cartId) => apiFetch(`/cart-products/cart/${cartId}`)
 
 export const validateCartStock = async (cartId) => {
   const items = await getCartItems(cartId)

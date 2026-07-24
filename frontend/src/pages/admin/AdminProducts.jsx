@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { PageError, PageLoader } from '../../components/AsyncState.jsx'
 import { useToast } from '../../context/ToastContext.jsx'
 import {
   createProduct,
   deleteProduct,
-  getCategories,
-  getProducts,
+  fetchCategories,
+  fetchProducts,
   updateProduct,
-} from '../../services/api.js'
+} from '../../features/products/productThunks.js'
 
 const emptyForm = {
   idProduct: null,
@@ -27,34 +28,36 @@ const formatPrice = (price) =>
   }).format(price)
 
 function AdminProducts() {
+  const dispatch = useDispatch()
   const { toastSuccess, toastError, confirmAction } = useToast()
-  const [categories, setCategories] = useState([])
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const products = useSelector((state) => state.products.products)
+  const categories = useSelector((state) => state.products.categories)
+  const status = useSelector((state) => state.products.status)
+  const error = useSelector((state) => state.products.error)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
 
+  const loading =
+    status === 'loading' || (status === 'idle' && products.length === 0 && !error)
+
   const loadData = () => {
-    setLoading(true)
-    setError('')
-    Promise.all([getProducts(), getCategories()])
-      .then(([nextProducts, nextCategories]) => {
-        setProducts(nextProducts)
-        setCategories(nextCategories)
-        setForm((current) => ({
-          ...current,
-          categoryId: current.categoryId || String(nextCategories[0]?.idCategory ?? ''),
-        }))
-      })
-      .catch((fetchError) => setError(fetchError.message))
-      .finally(() => setLoading(false))
+    dispatch(fetchProducts())
+    dispatch(fetchCategories())
   }
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [dispatch])
+
+  useEffect(() => {
+    if (categories.length > 0 && !form.categoryId) {
+      setForm((current) => ({
+        ...current,
+        categoryId: String(categories[0].idCategory),
+      }))
+    }
+  }, [categories, form.categoryId])
 
   const closeForm = () => {
     setShowForm(false)
@@ -98,16 +101,17 @@ function AdminProducts() {
     setSaving(true)
     try {
       if (form.idProduct) {
-        await updateProduct(form.idProduct, buildPayload())
+        await dispatch(
+          updateProduct({ id: form.idProduct, product: buildPayload() }),
+        ).unwrap()
         toastSuccess('Producto actualizado')
       } else {
-        await createProduct(buildPayload())
+        await dispatch(createProduct(buildPayload())).unwrap()
         toastSuccess('Producto creado')
       }
       closeForm()
-      loadData()
     } catch (submitError) {
-      toastError(submitError.message || 'No se pudo guardar el producto')
+      toastError(submitError || 'No se pudo guardar el producto')
     } finally {
       setSaving(false)
     }
@@ -124,11 +128,10 @@ function AdminProducts() {
     if (!confirmed) return
 
     try {
-      await deleteProduct(idProduct)
+      await dispatch(deleteProduct(idProduct)).unwrap()
       toastSuccess('Producto eliminado')
-      loadData()
     } catch (deleteError) {
-      toastError(deleteError.message || 'No se pudo eliminar el producto')
+      toastError(deleteError || 'No se pudo eliminar el producto')
     }
   }
 
@@ -136,7 +139,7 @@ function AdminProducts() {
     return <PageLoader message="Cargando productos..." />
   }
 
-  if (error) {
+  if (error && products.length === 0) {
     return <PageError message={error} onRetry={loadData} />
   }
 

@@ -7,6 +7,7 @@ import {
   applyDiscount as applyDiscountAction,
   clearCart as clearCartAction,
   clearDiscount as clearDiscountAction,
+  showAddedItemModal,
   updateLocalItemQuantity,
   removeLocalItem,
 } from './cartSlice.js'
@@ -32,7 +33,7 @@ import {
 
 export function useCart() {
   const dispatch = useDispatch()
-  const { toastSuccess, toastError } = useToast()
+  const { toastError } = useToast()
   const isAuthenticated = useSelector(selectIsAuthenticated)
   const items = useSelector(selectCartItems)
   const cartId = useSelector(selectCartId)
@@ -47,10 +48,10 @@ export function useCart() {
   const total = useSelector(selectCartTotal)
 
   const notifyAdded = useCallback(
-    (productName) => {
-      toastSuccess(`"${productName}" agregado al carrito`)
+    (product, quantity = 1) => {
+      dispatch(showAddedItemModal({ product, quantity }))
     },
-    [toastSuccess],
+    [dispatch],
   )
 
   const refreshCart = useCallback(async () => {
@@ -86,7 +87,7 @@ export function useCart() {
             ).unwrap()
           }
 
-          notifyAdded(product.productName)
+          notifyAdded(product, quantity)
         } catch (error) {
           toastError(error || 'No se pudo agregar al carrito')
           await refreshCart()
@@ -95,7 +96,7 @@ export function useCart() {
       }
 
       dispatch(addLocalItem({ product, quantity }))
-      notifyAdded(product.productName)
+      notifyAdded(product, quantity)
     },
     [cartId, dispatch, isAuthenticated, items, notifyAdded, refreshCart, toastError],
   )

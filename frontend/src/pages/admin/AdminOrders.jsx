@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
 import { PageError, PageLoader } from '../../components/AsyncState.jsx'
 import { ArrowRightIcon } from '../../components/Icons.jsx'
 import AdminStatusPicker from '../../components/admin/AdminStatusPicker.jsx'
 import { useToast } from '../../context/ToastContext.jsx'
-import { getOrdersWithItems, mapOrdersWithItems, updateOrderStatus } from '../../services/api.js'
+import { fetchOrders, updateOrderStatus } from '../../features/orders/orderThunks.js'
 import { formatOrderId } from '../../services/orders.js'
 
 const formatPrice = (price) =>
@@ -15,38 +16,30 @@ const formatPrice = (price) =>
   }).format(price)
 
 function AdminOrders() {
+  const dispatch = useDispatch()
   const { toastSuccess, toastError } = useToast()
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const orders = useSelector((state) => state.orders.orders)
+  const status = useSelector((state) => state.orders.status)
+  const error = useSelector((state) => state.orders.error)
   const [updatingId, setUpdatingId] = useState(null)
 
+  const loading = status === 'loading' && orders.length === 0
+
   const loadOrders = () => {
-    setLoading(true)
-    setError('')
-    getOrdersWithItems()
-      .then(mapOrdersWithItems)
-      .then(setOrders)
-      .catch((fetchError) => setError(fetchError.message))
-      .finally(() => setLoading(false))
+    dispatch(fetchOrders())
   }
 
   useEffect(() => {
     loadOrders()
-  }, [])
+  }, [dispatch])
 
-  const handleStatusChange = async (idOrder, status) => {
+  const handleStatusChange = async (idOrder, nextStatus) => {
     setUpdatingId(idOrder)
     try {
-      await updateOrderStatus(idOrder, status)
-      setOrders((current) =>
-        current.map((order) =>
-          order.idOrder === idOrder ? { ...order, status } : order,
-        ),
-      )
+      await dispatch(updateOrderStatus({ id: idOrder, status: nextStatus })).unwrap()
       toastSuccess('Estado del pedido actualizado')
     } catch (updateError) {
-      toastError(updateError.message || 'No se pudo actualizar el estado')
+      toastError(updateError || 'No se pudo actualizar el estado')
     } finally {
       setUpdatingId(null)
     }
@@ -93,7 +86,7 @@ function AdminOrders() {
                 <AdminStatusPicker
                   value={order.status}
                   disabled={updatingId === order.idOrder}
-                  onChange={(status) => handleStatusChange(order.idOrder, status)}
+                  onChange={(nextStatus) => handleStatusChange(order.idOrder, nextStatus)}
                 />
               </div>
 

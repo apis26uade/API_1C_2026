@@ -73,26 +73,6 @@ export const syncCartWithBackend = createAsyncThunk(
   },
 )
 
-export const getOrCreateCart = createAsyncThunk(
-  'cart/getOrCreate',
-  async (userId, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`/cart/user/${userId}`)
-      return response.data
-    } catch (error) {
-      if (error.status === 404) {
-        try {
-          const createResponse = await api.post(`/cart?userId=${userId}`)
-          return createResponse.data
-        } catch (createError) {
-          return rejectWithValue(createError.message)
-        }
-      }
-      return rejectWithValue(error.message)
-    }
-  }
-)
-
 export const fetchCartItems = createAsyncThunk(
   'cart/fetchItems',
   async (cartId, { rejectWithValue }) => {

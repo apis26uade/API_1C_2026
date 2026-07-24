@@ -7,6 +7,7 @@ import App from './App.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
 import CartSync from './components/CartSync.jsx'
+import CartAddedModal from './components/CartAddedModal.jsx'
 import './styles/fonts.css'
 import './index.css'
 
@@ -16,6 +17,7 @@ createRoot(document.getElementById('root')).render(
       <Provider store={store}>
         <ToastProvider>
           <CartSync />
+          <CartAddedModal />
           <ScrollToTop />
           <App />
         </ToastProvider>

@@ -235,7 +235,7 @@ function Checkout() {
             <PackageIcon size={16} />
             Ver detalle del pedido
           </Link>
-          <Link className="button ghost" to="/pedidos">
+          <Link className="button secondary" to="/pedidos">
             Mis pedidos
           </Link>
           <Link className="checkout-back centered" to="/catalogo">
@@ -478,7 +478,7 @@ function Checkout() {
 
               <div className="checkout-payment-actions">
                 <button
-                  className="button ghost"
+                  className="button secondary"
                   type="button"
                   onClick={() => setStep('shipping')}
                 >

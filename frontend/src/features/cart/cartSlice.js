@@ -1,7 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 import {
   syncCartWithBackend,
-  getOrCreateCart,
   fetchCartItems,
   addCartItem,
   updateCartItem,
@@ -34,6 +33,7 @@ const initialState = {
   items: readLocalItems(),
   cartId: null,
   appliedDiscount: null,
+  addedItemModal: null,
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   syncing: false,
   error: null,
@@ -85,14 +85,18 @@ const cartSlice = createSlice({
     clearDiscount: (state) => {
       state.appliedDiscount = null
     },
-    setCartId: (state, action) => {
-      state.cartId = action.payload
-    },
     resetToLocalCart: (state) => {
       state.cartId = null
       state.items = readLocalItems()
       state.syncing = false
       state.appliedDiscount = null
+      state.addedItemModal = null
+    },
+    showAddedItemModal: (state, action) => {
+      state.addedItemModal = action.payload
+    },
+    dismissAddedItemModal: (state) => {
+      state.addedItemModal = null
     },
   },
   extraReducers: (builder) => {
@@ -111,19 +115,6 @@ const cartSlice = createSlice({
         state.error = action.payload
         state.items = readLocalItems()
       })
-      // getOrCreateCart
-      .addCase(getOrCreateCart.pending, (state) => {
-        state.syncing = true
-        state.error = null
-      })
-      .addCase(getOrCreateCart.fulfilled, (state, action) => {
-        state.cartId = action.payload.idCart
-      })
-      .addCase(getOrCreateCart.rejected, (state, action) => {
-        state.syncing = false
-        state.error = action.payload
-      })
-      
       // fetchCartItems
       .addCase(fetchCartItems.fulfilled, (state, action) => {
         state.items = action.payload.map(mapCartProduct)
@@ -161,8 +152,9 @@ export const {
   clearCart,
   applyDiscount,
   clearDiscount,
-  setCartId,
   resetToLocalCart,
+  showAddedItemModal,
+  dismissAddedItemModal,
 } = cartSlice.actions
 
 export default cartSlice.reducer

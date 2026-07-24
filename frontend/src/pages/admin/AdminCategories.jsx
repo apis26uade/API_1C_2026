@@ -1,36 +1,39 @@
 import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { PageError, PageLoader } from '../../components/AsyncState.jsx'
 import { useToast } from '../../context/ToastContext.jsx'
 import {
   createCategory,
   deleteCategory,
-  getCategories,
+  fetchCategories,
   updateCategory,
-} from '../../services/api.js'
+} from '../../features/products/productThunks.js'
 
 const emptyForm = { idCategory: null, categoryName: '' }
 
 function AdminCategories() {
+  const dispatch = useDispatch()
   const { toastSuccess, toastError, confirmAction } = useToast()
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const categories = useSelector((state) => state.products.categories)
+  const error = useSelector((state) => state.products.error)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(categories.length === 0)
 
   const loadCategories = () => {
     setLoading(true)
-    setError('')
-    getCategories()
-      .then(setCategories)
-      .catch((fetchError) => setError(fetchError.message))
+    dispatch(fetchCategories())
+      .unwrap()
+      .catch(() => {})
       .finally(() => setLoading(false))
   }
 
   useEffect(() => {
-    loadCategories()
-  }, [])
+    if (categories.length === 0) {
+      loadCategories()
+    }
+  }, [dispatch])
 
   const closeForm = () => {
     setShowForm(false)
@@ -61,16 +64,15 @@ function AdminCategories() {
     setSaving(true)
     try {
       if (form.idCategory) {
-        await updateCategory(form.idCategory, name)
+        await dispatch(updateCategory({ id: form.idCategory, categoryName: name })).unwrap()
         toastSuccess('Categoria actualizada')
       } else {
-        await createCategory(name)
+        await dispatch(createCategory(name)).unwrap()
         toastSuccess('Categoria creada')
       }
       closeForm()
-      loadCategories()
     } catch (submitError) {
-      toastError(submitError.message || 'No se pudo guardar la categoria')
+      toastError(submitError || 'No se pudo guardar la categoria')
     } finally {
       setSaving(false)
     }
@@ -87,11 +89,10 @@ function AdminCategories() {
     if (!confirmed) return
 
     try {
-      await deleteCategory(category.idCategory)
+      await dispatch(deleteCategory(category.idCategory)).unwrap()
       toastSuccess('Categoria eliminada')
-      loadCategories()
     } catch (deleteError) {
-      toastError(deleteError.message || 'No se pudo eliminar la categoria')
+      toastError(deleteError || 'No se pudo eliminar la categoria')
     }
   }
 
@@ -99,7 +100,7 @@ function AdminCategories() {
     return <PageLoader message="Cargando categorias..." />
   }
 
-  if (error) {
+  if (error && categories.length === 0) {
     return <PageError message={error} onRetry={loadCategories} />
   }
 

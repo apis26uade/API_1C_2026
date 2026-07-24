@@ -14,7 +14,7 @@ Integrada con el backend Spring Boot en `http://localhost:8080`.
 - Checkout con confirmación de orden real (`POST /orders`)
 - Mis pedidos e historial con detalle
 - Registro e inicio de sesión (JWT)
-- Toast al agregar productos al carrito
+- Toast al agregar productos al carrito (modal centrado)
 
 ### Administración
 
@@ -81,15 +81,22 @@ VITE_API_URL=http://localhost:8080
 ```
 frontend/
 ├── src/
+│   ├── redux/
+│   │   └── store.js        # Store Redux (auth, cart, products, orders)
+│   ├── features/
+│   │   ├── auth/
+│   │   ├── cart/
+│   │   ├── products/
+│   │   └── orders/
 │   ├── services/
-│   │   ├── api.js          # Cliente HTTP (fetch + JWT)
-│   │   ├── catalog.js      # Re-export de catálogo
+│   │   ├── api.js          # Cliente HTTP (axios + JWT)
 │   │   └── orders.js       # Constantes de pedidos
 │   ├── context/
-│   │   ├── AuthContext.jsx
-│   │   └── CartContext.jsx
+│   │   └── ToastContext.jsx  # Toasts y confirmaciones UI
 │   ├── components/
 │   │   ├── AsyncState.jsx  # Loading / error
+│   │   ├── CartAddedModal.jsx
+│   │   ├── CartSync.jsx
 │   │   └── admin/
 │   ├── pages/
 │   │   └── admin/

@@ -9,6 +9,8 @@ export const selectCartSyncing = (state) => state.cart.syncing
 
 export const selectAppliedDiscount = (state) => state.cart.appliedDiscount
 
+export const selectAddedItemModal = (state) => state.cart.addedItemModal
+
 export const selectItemCount = (state) =>
   state.cart.items.reduce((count, entry) => count + entry.quantity, 0)
 

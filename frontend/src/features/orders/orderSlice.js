@@ -51,7 +51,10 @@ const orderSlice = createSlice({
       .addCase(updateOrderStatus.fulfilled, (state, action) => {
         const index = state.orders.findIndex(o => o.idOrder === action.payload.idOrder)
         if (index !== -1) {
-          state.orders[index] = action.payload
+          state.orders[index] = {
+            ...state.orders[index],
+            status: action.payload.status,
+          }
         }
       })
   }

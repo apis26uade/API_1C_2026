@@ -1,12 +1,12 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
-import { api } from '../../services/api.js'
+import { api, mapOrdersWithItems } from '../../services/api.js'
 
 export const fetchOrders = createAsyncThunk(
   'orders/fetchOrders',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/orders')
-      return response.data
+      const response = await api.get('/orders?includeItems=true')
+      return mapOrdersWithItems(response.data)
     } catch (error) {
       return rejectWithValue(error.message)
     }
