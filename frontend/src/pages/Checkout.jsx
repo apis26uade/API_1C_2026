@@ -7,10 +7,10 @@ import {
   MapPinIcon,
   PackageIcon,
 } from '../components/Icons.jsx'
-import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../features/auth/authSlice.js';
-import { loginUser, registerUser } from '../features/auth/authThunks.js';
-import { addLocalItem, updateLocalItemQuantity, removeLocalItem, clearCart } from '../features/cart/cartSlice.js';
+import { useSelector } from 'react-redux'
+import { selectIsAuthenticated, selectUser } from '../features/auth/authSelectors.js'
+import { selectShipping } from '../features/cart/cartSelectors.js'
+import { useCart } from '../features/cart/useCart.js'
 import { useToast } from '../context/ToastContext.jsx'
 import { PAYMENT_METHODS } from '../data/paymentMethods.js'
 import { createOrder, validateCartStock } from '../services/api.js'
@@ -61,10 +61,21 @@ const initialShipping = {
 
 function Checkout() {
   const navigate = useNavigate()
-    const dispatch = useDispatch();
-  const { user, isAuthenticated } = useSelector(state => state.auth);
-    const { items, itemCount, subtotal, total, appliedDiscount } = useSelector(state => state.cart);
-  const handleClearCart = () => dispatch(clearCart());
+  const user = useSelector(selectUser)
+  const isAuthenticated = useSelector(selectIsAuthenticated)
+  const shippingCost = useSelector(selectShipping)
+  const {
+    items,
+    subtotal,
+    total,
+    cartId,
+    syncing,
+    discountCode,
+    discountPercent,
+    discountAmount,
+    clearCart,
+    refreshCart,
+  } = useCart()
   const { toastSuccess, toastError } = useToast()
 
   const [step, setStep] = useState('shipping')
@@ -193,7 +204,7 @@ function Checkout() {
         shipping: buildShippingPayload(shippingForm),
       })
       setOrderId(order.idOrder)
-      handleClearCart()
+      clearCart()
       toastSuccess('Compra confirmada correctamente')
       setStep('success')
     } catch (submitError) {

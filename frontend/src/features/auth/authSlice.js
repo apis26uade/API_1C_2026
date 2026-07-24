@@ -22,8 +22,11 @@ const persistSession = (session) => {
   }
 }
 
+const storedUser = readStoredAuth()
+
 const initialState = {
-  user: readStoredAuth(),
+  user: storedUser,
+  isAuthenticated: Boolean(storedUser?.token),
   status: 'idle',
   error: null,
 }
@@ -34,6 +37,7 @@ const authSlice = createSlice({
   reducers: {
     logout: (state) => {
       state.user = null
+      state.isAuthenticated = false
       state.status = 'idle'
       state.error = null
       persistSession(null)
@@ -51,6 +55,7 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, action) => {
         state.status = 'succeeded'
         state.user = action.payload
+        state.isAuthenticated = true
         persistSession(action.payload)
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -64,6 +69,7 @@ const authSlice = createSlice({
       .addCase(registerUser.fulfilled, (state, action) => {
         state.status = 'succeeded'
         state.user = action.payload
+        state.isAuthenticated = true
         persistSession(action.payload)
       })
       .addCase(registerUser.rejected, (state, action) => {

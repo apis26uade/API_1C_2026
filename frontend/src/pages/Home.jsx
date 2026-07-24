@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
 import { PageError, PageLoader } from '../components/AsyncState.jsx'
 import { HeartOutlineIcon, LeafIcon, RecycleIcon } from '../components/Icons.jsx'
 import ProductCard from '../components/ProductCard.jsx'
@@ -9,34 +10,28 @@ import {
   heroImage,
   philosophyImage,
 } from '../data/products.js'
-import { getCategories, getProducts } from '../services/api.js'
+import { fetchCategories, fetchProducts } from '../features/products/productThunks.js'
 import { useToast } from '../context/ToastContext.jsx'
 
 function Home() {
+  const dispatch = useDispatch()
   const { toastSuccess } = useToast()
-  const [products, setProducts] = useState([])
-  const [catalogCategories, setCatalogCategories] = useState(fallbackCategories)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const products = useSelector((state) => state.products.products)
+  const categories = useSelector((state) => state.products.categories)
+  const status = useSelector((state) => state.products.status)
+  const error = useSelector((state) => state.products.error)
+  const loading = status === 'loading' || (status === 'idle' && products.length === 0 && !error)
+  const catalogCategories = categories.length > 0 ? categories : fallbackCategories
   const [email, setEmail] = useState('')
 
   const loadProducts = () => {
-    setLoading(true)
-    setError('')
-    Promise.all([getProducts(), getCategories()])
-      .then(([nextProducts, nextCategories]) => {
-        setProducts(nextProducts)
-        if (nextCategories.length > 0) {
-          setCatalogCategories(nextCategories)
-        }
-      })
-      .catch((fetchError) => setError(fetchError.message))
-      .finally(() => setLoading(false))
+    dispatch(fetchProducts())
+    dispatch(fetchCategories())
   }
 
   useEffect(() => {
     loadProducts()
-  }, [])
+  }, [dispatch])
 
   const handleNewsletter = (event) => {
     event.preventDefault()

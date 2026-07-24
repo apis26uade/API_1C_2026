@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
 import { PageError, PageLoader } from '../components/AsyncState.jsx'
 import { ChevronDownIcon, XIcon } from '../components/Icons.jsx'
 import ProductCard from '../components/ProductCard.jsx'
-import { getCategories, getProducts } from '../services/api.js'
+import { fetchCategories, fetchProducts } from '../features/products/productThunks.js'
 
 const sortOptions = [
   { value: 'default', label: 'Destacados' },
@@ -20,12 +21,14 @@ const priceRanges = [
 ]
 
 function Products() {
+  const dispatch = useDispatch()
   const [searchParams, setSearchParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const products = useSelector((state) => state.products.products)
+  const categories = useSelector((state) => state.products.categories)
+  const status = useSelector((state) => state.products.status)
+  const error = useSelector((state) => state.products.error)
+  const loading = status === 'loading' || (status === 'idle' && products.length === 0 && !error)
 
   const search = searchParams.get('q') ?? ''
   const selectedCategory = searchParams.get('categoria')
@@ -36,20 +39,13 @@ function Products() {
   const maxPrice = searchParams.get('maxPrecio') ? Number(searchParams.get('maxPrecio')) : 999
 
   const loadCatalog = () => {
-    setLoading(true)
-    setError('')
-    Promise.all([getProducts(), getCategories()])
-      .then(([nextProducts, nextCategories]) => {
-        setProducts(nextProducts)
-        setCategories(nextCategories)
-      })
-      .catch((fetchError) => setError(fetchError.message))
-      .finally(() => setLoading(false))
+    dispatch(fetchProducts())
+    dispatch(fetchCategories())
   }
 
   useEffect(() => {
     loadCatalog()
-  }, [])
+  }, [dispatch])
 
   const setFilter = (key, value) => {
     setSearchParams((currentParams) => {

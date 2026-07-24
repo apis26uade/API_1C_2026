@@ -1,9 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { selectIsAdmin, selectIsAuthenticated } from '../features/auth/authSelectors.js'
 
 function AdminRoute({ children }) {
-  const { isAuthenticated, user } = useSelector((state) => state.auth)
-  const isAdmin = user?.role === 'ROLE_ADMIN'
+  const isAuthenticated = useSelector(selectIsAuthenticated)
+  const isAdmin = useSelector(selectIsAdmin)
   const location = useLocation()
 
   if (!isAuthenticated) {

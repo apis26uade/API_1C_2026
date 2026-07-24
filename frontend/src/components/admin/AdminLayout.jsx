@@ -1,5 +1,8 @@
 import { NavLink, Outlet, Link } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext.jsx'
+import { useDispatch, useSelector } from 'react-redux'
+import { logout } from '../../features/auth/authSlice.js'
+import { selectUser } from '../../features/auth/authSelectors.js'
+import { resetToLocalCart } from '../../features/cart/cartSlice.js'
 
 const adminLinks = [
   { to: '/admin/productos', label: 'Productos' },
@@ -8,9 +11,13 @@ const adminLinks = [
 ]
 
 function AdminLayout() {
-    const dispatch = useDispatch();
-  const { user, isAuthenticated } = useSelector(state => state.auth);
-  const handleLogout = () => dispatch(logout());
+  const dispatch = useDispatch()
+  const user = useSelector(selectUser)
+
+  const handleLogout = () => {
+    dispatch(logout())
+    dispatch(resetToLocalCart())
+  }
 
   return (
     <div className="admin-shell">

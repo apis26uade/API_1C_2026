@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { logout } from '../features/auth/authSlice.js'
+import { selectIsAuthenticated, selectUser } from '../features/auth/authSelectors.js'
+import { selectItemCount } from '../features/cart/cartSelectors.js'
+import { resetToLocalCart } from '../features/cart/cartSlice.js'
 import { fetchCategories } from '../features/products/productThunks.js'
 import { categories as fallbackCategories } from '../data/products.js'
 import { ChevronDownIcon, ShoppingBagIcon } from './Icons.jsx'
@@ -10,13 +13,12 @@ function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   
   const dispatch = useDispatch()
-  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const user = useSelector(selectUser)
+  const isAuthenticated = useSelector(selectIsAuthenticated)
   const isAdmin = user?.role === 'ROLE_ADMIN'
-  const cartItems = useSelector((state) => state.cart.items)
+  const itemCount = useSelector(selectItemCount)
   const categories = useSelector((state) => state.products.categories)
   const categoriesStatus = useSelector((state) => state.products.status)
-  
-  const itemCount = cartItems.reduce((count, entry) => count + entry.quantity, 0)
   const displayCategories = categories.length > 0 ? categories : fallbackCategories
 
   useEffect(() => {
@@ -28,6 +30,7 @@ function Navbar() {
   const closeMobileMenu = () => setMobileOpen(false)
   const handleLogout = () => {
     dispatch(logout())
+    dispatch(resetToLocalCart())
     closeMobileMenu()
   }
 

@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 import {
+  syncCartWithBackend,
   getOrCreateCart,
   fetchCartItems,
   addCartItem,
@@ -86,10 +87,30 @@ const cartSlice = createSlice({
     },
     setCartId: (state, action) => {
       state.cartId = action.payload
-    }
+    },
+    resetToLocalCart: (state) => {
+      state.cartId = null
+      state.items = readLocalItems()
+      state.syncing = false
+      state.appliedDiscount = null
+    },
   },
   extraReducers: (builder) => {
     builder
+      .addCase(syncCartWithBackend.pending, (state) => {
+        state.syncing = true
+        state.error = null
+      })
+      .addCase(syncCartWithBackend.fulfilled, (state, action) => {
+        state.cartId = action.payload.cartId
+        state.items = action.payload.items.map(mapCartProduct)
+        state.syncing = false
+      })
+      .addCase(syncCartWithBackend.rejected, (state, action) => {
+        state.syncing = false
+        state.error = action.payload
+        state.items = readLocalItems()
+      })
       // getOrCreateCart
       .addCase(getOrCreateCart.pending, (state) => {
         state.syncing = true
@@ -141,6 +162,7 @@ export const {
   applyDiscount,
   clearDiscount,
   setCartId,
+  resetToLocalCart,
 } = cartSlice.actions
 
 export default cartSlice.reducer

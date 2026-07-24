@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRightIcon, TagIcon, TrashIcon } from '../components/Icons.jsx'
-import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../features/auth/authSlice.js';
-import { loginUser, registerUser } from '../features/auth/authThunks.js';
-import { addLocalItem, updateLocalItemQuantity, removeLocalItem, clearCart } from '../features/cart/cartSlice.js';
+import { useSelector } from 'react-redux'
+import { selectIsAuthenticated } from '../features/auth/authSelectors.js'
+import { useCart } from '../features/cart/useCart.js'
 import { useToast } from '../context/ToastContext.jsx'
 import { getDiscountByCode } from '../services/api.js'
 
@@ -17,12 +16,25 @@ const formatPrice = (price) =>
 
 function Cart() {
   const navigate = useNavigate()
-    const dispatch = useDispatch();
-  const { user, isAuthenticated } = useSelector(state => state.auth);
+  const isAuthenticated = useSelector(selectIsAuthenticated)
   const { toastSuccess, toastError } = useToast()
-    const { items, itemCount, subtotal, total, appliedDiscount } = useSelector(state => state.cart);
-  const removeItem = (id) => dispatch(removeLocalItem(id));
-  const updateQuantity = (idProduct, quantity) => dispatch(updateLocalItemQuantity({ idProduct, quantity }));
+  const {
+    items,
+    itemCount,
+    subtotal,
+    shipping,
+    total,
+    appliedDiscount,
+    discountCode,
+    discountPercent,
+    discountAmount,
+    syncing,
+    applyDiscount,
+    clearDiscount,
+    removeItem,
+    updateQuantity,
+    refreshCart,
+  } = useCart()
   const [discountInput, setDiscountInput] = useState('')
   const [applyingDiscount, setApplyingDiscount] = useState(false)
 
@@ -195,7 +207,9 @@ function Cart() {
           </div>
           {discountPercent > 0 ? (
             <div className="cart-summary-row discount-row">
-              <span>Descuento ({discountCode}, {discountPercent}%)</span>
+              <span>
+                Descuento ({discountCode}, {discountPercent}%)
+              </span>
               <strong>-{formatPrice(discountAmount)}</strong>
             </div>
           ) : null}

@@ -1,6 +1,78 @@
 import { createAsyncThunk } from '@reduxjs/toolkit'
 import { api } from '../../services/api.js'
 
+const STORAGE_KEY = 'boho_cart'
+
+const readLocalItems = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    return saved ? JSON.parse(saved) : []
+  } catch {
+    return []
+  }
+}
+
+export const syncCartWithBackend = createAsyncThunk(
+  'cart/syncWithBackend',
+  async (userId, { rejectWithValue }) => {
+    try {
+      let cart
+      try {
+        const response = await api.get(`/cart/user/${userId}`)
+        cart = response.data
+      } catch (error) {
+        if (error.status === 404) {
+          const createResponse = await api.post(`/cart?userId=${userId}`)
+          cart = createResponse.data
+        } else {
+          throw error
+        }
+      }
+
+      const localItems = readLocalItems()
+      const backendResponse = await api.get(`/cart-products/cart/${cart.idCart}`)
+      const backendItems = backendResponse.data
+
+      const backendByProduct = new Map(
+        backendItems.map((entry) => [entry.product.idProduct, entry]),
+      )
+
+      for (const localItem of localItems) {
+        const productId = localItem.product.idProduct
+        const existing = backendByProduct.get(productId)
+        const targetQty = Math.min(
+          (existing?.quantity ?? 0) + localItem.quantity,
+          localItem.product.stock,
+        )
+
+        if (existing) {
+          const updated = await api.put(
+            `/cart-products/${existing.idCartProduct}?quantity=${targetQty}`,
+          )
+          backendByProduct.set(productId, updated.data)
+        } else {
+          const created = await api.post(
+            `/cart-products?cartId=${cart.idCart}&productId=${productId}&quantity=${targetQty}`,
+          )
+          backendByProduct.set(productId, created.data)
+        }
+      }
+
+      if (localItems.length) {
+        localStorage.removeItem(STORAGE_KEY)
+      }
+
+      const syncedResponse = await api.get(`/cart-products/cart/${cart.idCart}`)
+      return {
+        cartId: cart.idCart,
+        items: syncedResponse.data,
+      }
+    } catch (error) {
+      return rejectWithValue(error.message)
+    }
+  },
+)
+
 export const getOrCreateCart = createAsyncThunk(
   'cart/getOrCreate',
   async (userId, { rejectWithValue }) => {

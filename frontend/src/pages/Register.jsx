@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EyeIcon, EyeOffIcon } from '../components/Icons.jsx'
-import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../features/auth/authSlice.js';
-import { loginUser, registerUser } from '../features/auth/authThunks.js';
+import { useDispatch } from 'react-redux';
+import { registerUser } from '../features/auth/authThunks.js';
 import { useToast } from '../context/ToastContext.jsx'
 
 const REGISTER_IMAGE =
